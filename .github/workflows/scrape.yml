@@ -55,6 +55,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add dashboard/records.json data/records.json data/leads_export.csv || true
           git diff --staged --quiet || git commit -m "chore: update leads [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+          git pull --rebase origin main
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
