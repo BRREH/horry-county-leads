@@ -1,6 +1,10 @@
-{ "fetched_at": null,
+{
+  "fetched_at": "2026-04-27T21:25:32.859647",
   "source": "Horry County SC Clerk of Court",
-  "date_range": {"start": null, "end": null},
+  "date_range": {
+    "start": "04/20/2026",
+    "end": "04/27/2026"
+  },
   "total": 0,
   "with_address": 0,
   "records": []
