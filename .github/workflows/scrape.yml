@@ -2,8 +2,8 @@ name: Scrape Horry County Leads
 
 on:
   schedule:
-    - cron: "0 7 * * *"   # 7:00 AM UTC daily (3 AM ET)
-  workflow_dispatch:        # Manual trigger
+    - cron: "0 7 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,6 +24,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -41,8 +42,7 @@ jobs:
         run: python -m playwright install --with-deps chromium
 
       - name: Create output directories
-        run: |
-          mkdir -p dashboard data
+        run: mkdir -p dashboard data
 
       - name: Run scraper
         run: python scraper/fetch.py
@@ -55,8 +55,8 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add dashboard/records.json data/records.json data/leads_export.csv || true
           git diff --staged --quiet || git commit -m "chore: update leads [$(date -u '+%Y-%m-%d %H:%M UTC')]"
-          git pull --rebase origin main
-          git push
+          git pull origin main --rebase --autostash
+          git push origin main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -71,7 +71,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: main   # pick up freshly committed records.json
+          ref: main
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
