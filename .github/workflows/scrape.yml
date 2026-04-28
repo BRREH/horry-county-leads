@@ -48,6 +48,8 @@ jobs:
         run: python scraper/fetch.py
         env:
           PYTHONUNBUFFERED: "1"
+          HORRY_USERNAME: ${{ secrets.HORRY_USERNAME }}
+          HORRY_PASSWORD: ${{ secrets.HORRY_PASSWORD }}
 
       - name: Commit and push results
         run: |
