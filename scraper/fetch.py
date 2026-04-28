@@ -193,9 +193,12 @@ def parse_csv(raw: str) -> list:
                 if book_page:
                     parts = book_page.split("/")
                     if len(parts) == 2:
+                        # Correct Acclaim URL — goes to Book/Page search
+                        # pre-filled with this document's book and page
                         clerk_url = (
-                            f"{ACCLAIM_BASE}/search/BookPageSearchResult"
-                            f"?bookNumber={parts[0]}&pageNumber={parts[1]}"
+                            f"{ACCLAIM_BASE}/search/SearchTypeBookPage"
+                            f"?bookType=&bookNumber={parts[0]}"
+                            f"&pageNumber={parts[1]}&searchType=BookPage"
                         )
                     else:
                         clerk_url = DOCTYPE_URL
