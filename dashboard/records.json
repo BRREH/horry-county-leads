@@ -1,11 +1,11 @@
 {
-  "fetched_at": "2026-04-28T17:41:14.446332",
+  "fetched_at": "2026-04-28T18:05:42.476959",
   "source": "Horry County Register of Deeds",
   "date_range": {
     "start": "04/21/2026",
     "end": "04/28/2026"
   },
-  "total": 151,
+  "total": 154,
   "with_address": 0,
   "records": [
     {
@@ -3051,6 +3051,32 @@
       "score": 65
     },
     {
+      "doc_num": "5072/1159",
+      "doc_type": "NOFC",
+      "filed": "2026-04-28",
+      "cat": "NOFC",
+      "cat_label": "Notice of Foreclosure",
+      "owner": "KING CUNNINGHAM LLC TR",
+      "grantee": "MURPHY ANN M",
+      "amount": null,
+      "legal": "TRUSTEES NOTICE OF SALE",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeBookPage?bookType=&bookNumber=5072&pageNumber=1159&searchType=BookPage",
+      "prop_address": "",
+      "prop_city": "",
+      "prop_state": "SC",
+      "prop_zip": "",
+      "mail_address": "",
+      "mail_city": "",
+      "mail_state": "SC",
+      "mail_zip": "",
+      "flags": [
+        "Pre-foreclosure",
+        "LLC / corp owner",
+        "New this week"
+      ],
+      "score": 65
+    },
+    {
       "doc_num": "5072/1143",
       "doc_type": "NOFC",
       "filed": "2026-04-28",
@@ -3811,7 +3837,7 @@
       "score": 55
     },
     {
-      "doc_num": "5072/1159",
+      "doc_num": "5072/1382",
       "doc_type": "NOFC",
       "filed": "2026-04-28",
       "cat": "NOFC",
@@ -3820,7 +3846,57 @@
       "grantee": "",
       "amount": null,
       "legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeBookPage?bookType=&bookNumber=5072&pageNumber=1159&searchType=BookPage",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeBookPage?bookType=&bookNumber=5072&pageNumber=1382&searchType=BookPage",
+      "prop_address": "",
+      "prop_city": "",
+      "prop_state": "SC",
+      "prop_zip": "",
+      "mail_address": "",
+      "mail_city": "",
+      "mail_state": "SC",
+      "mail_zip": "",
+      "flags": [
+        "Pre-foreclosure",
+        "New this week"
+      ],
+      "score": 55
+    },
+    {
+      "doc_num": "5072/1376",
+      "doc_type": "NOFC",
+      "filed": "2026-04-28",
+      "cat": "NOFC",
+      "cat_label": "Notice of Foreclosure",
+      "owner": "",
+      "grantee": "",
+      "amount": null,
+      "legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeBookPage?bookType=&bookNumber=5072&pageNumber=1376&searchType=BookPage",
+      "prop_address": "",
+      "prop_city": "",
+      "prop_state": "SC",
+      "prop_zip": "",
+      "mail_address": "",
+      "mail_city": "",
+      "mail_state": "SC",
+      "mail_zip": "",
+      "flags": [
+        "Pre-foreclosure",
+        "New this week"
+      ],
+      "score": 55
+    },
+    {
+      "doc_num": "5072/1370",
+      "doc_type": "NOFC",
+      "filed": "2026-04-28",
+      "cat": "NOFC",
+      "cat_label": "Notice of Foreclosure",
+      "owner": "",
+      "grantee": "",
+      "amount": null,
+      "legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeBookPage?bookType=&bookNumber=5072&pageNumber=1370&searchType=BookPage",
       "prop_address": "",
       "prop_city": "",
       "prop_state": "SC",
@@ -3867,7 +3943,7 @@
       "cat": "LN",
       "cat_label": "Tax Lien",
       "owner": "INTERNAL REVENUE SERVICE TREASURY DEPARTMENT OF",
-      "grantee": "",
+      "grantee": "DODRIDGE DONALD R",
       "amount": null,
       "legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeBookPage?bookType=&bookNumber=305&pageNumber=3054&searchType=BookPage",
@@ -3892,7 +3968,7 @@
       "cat": "LN",
       "cat_label": "Tax Lien",
       "owner": "INTERNAL REVENUE SERVICE TREASURY DEPARTMENT OF",
-      "grantee": "",
+      "grantee": "JONES NICHOLAS A",
       "amount": null,
       "legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeBookPage?bookType=&bookNumber=305&pageNumber=3055&searchType=BookPage",
