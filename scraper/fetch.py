@@ -1,10 +1,11 @@
 """
-Horry County SC — Motivated Seller Lead Scraper
-Portal: Horry County Register of Deeds (Acclaim)
-Strategy: Use Document Type search page which has:
-  - DocTypesDisplay / DocTypeInfoCheckBox fields
-  - RecordDateFrom / RecordDateTo fields  
-  - btnSearch submit button
+Horry County SC — Motivated Seller Lead Scraper v5
+Strategy: FAST - Use Acclaim's Record Date search with exact field IDs
+- Navigate directly to DocType search page
+- Fill RecordDateFrom + RecordDateTo with exact IDs
+- Click Select All checkbox
+- Submit and parse results
+- Hard 20 minute total timeout
 """
 
 import asyncio
@@ -13,12 +14,10 @@ import json
 import logging
 import re
 import sys
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-import requests
 from bs4 import BeautifulSoup
 
 try:
@@ -34,8 +33,12 @@ logging.basicConfig(
 )
 log = logging.getLogger("horry_scraper")
 
-ACCLAIM_BASE   = "https://acclaimweb.horrycounty.org/AcclaimWeb"
+ACCLAIM_BASE  = "https://acclaimweb.horrycounty.org/AcclaimWeb"
+DOCTYPE_URL   = f"{ACCLAIM_BASE}/search/SearchTypeDocType"
 LOOK_BACK_DAYS = 7
+
+# Hard timeout — scraper stops collecting after this many seconds
+SCRAPER_TIMEOUT = 18 * 60  # 18 minutes
 
 DOC_CATEGORIES = {
     "LP":       ("LP",      "Lis Pendens"),
@@ -55,8 +58,6 @@ DOC_CATEGORIES = {
     "NOC":      ("NOC",     "Notice of Commencement"),
     "RELLP":    ("RELLP",   "Release Lis Pendens"),
 }
-
-TARGET_DOC_TYPES = list(DOC_CATEGORIES.keys())
 
 
 def date_range_str():
@@ -123,21 +124,24 @@ def compute_score(record, flags):
 
 
 # ===========================================================================
-# Acclaim Scraper — using exact field IDs discovered from log
+# Fast Acclaim Scraper
 # ===========================================================================
 
 class AcclaimScraper:
 
-    BASE      = "https://acclaimweb.horrycounty.org/AcclaimWeb"
-    DOCTYPE_URL = "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeDocType"
-
     def __init__(self):
-        self.records = []
+        self.records   = []
+        self.start_time = None
+
+    def timed_out(self):
+        return (datetime.now().timestamp() - self.start_time) > SCRAPER_TIMEOUT
 
     async def scrape(self):
         if not PLAYWRIGHT_AVAILABLE:
             log.warning("Playwright unavailable")
             return []
+
+        self.start_time = datetime.now().timestamp()
 
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(
@@ -152,6 +156,10 @@ class AcclaimScraper:
                 viewport={"width": 1280, "height": 900},
             )
             page = await context.new_page()
+
+            # Set default timeout for all operations
+            page.set_default_timeout(15000)
+
             try:
                 await self._run(page)
             except Exception as exc:
@@ -166,218 +174,187 @@ class AcclaimScraper:
         start_date, end_date = date_range_str()
         log.info("Date range: %s → %s", start_date, end_date)
 
-        # Step 1: Load portal and accept disclaimer
+        # ── Step 1: Accept disclaimer ──────────────────────────────
         log.info("Loading portal...")
-        await page.goto(self.BASE + "/", wait_until="networkidle", timeout=30000)
-        await asyncio.sleep(2)
+        await page.goto(ACCLAIM_BASE + "/", wait_until="domcontentloaded", timeout=20000)
+        await asyncio.sleep(1)
         await self._accept_disclaimer(page)
-        log.info("Post-disclaimer URL: %s", page.url)
 
-        # Step 2: Go to Document Type search page
-        # This page has RecordDateFrom, RecordDateTo, DocTypeInfoCheckBox, btnSearch
-        log.info("Loading Document Type search page...")
-        await page.goto(self.DOCTYPE_URL, wait_until="networkidle", timeout=20000)
+        # ── Step 2: Go directly to DocType search ─────────────────
+        log.info("Loading DocType search page...")
+        await page.goto(DOCTYPE_URL, wait_until="domcontentloaded", timeout=20000)
+        await asyncio.sleep(2)
+
+        # ── Step 3: Fill dates with EXACT field IDs ───────────────
+        log.info("Filling RecordDateFrom = %s", start_date)
+        await self._fill_field(page, "RecordDateFrom", start_date)
+
+        log.info("Filling RecordDateTo = %s", end_date)
+        await self._fill_field(page, "RecordDateTo", end_date)
+
+        # ── Step 4: Select All doc types ──────────────────────────
+        log.info("Selecting all doc types...")
+        await self._select_all(page)
+
+        # ── Step 5: Submit ────────────────────────────────────────
+        log.info("Clicking search...")
+        await self._submit(page)
         await asyncio.sleep(3)
-
-        # Step 3: Fill date range using EXACT field IDs from log
-        log.info("Filling date fields...")
-        date_start_filled = await self._fill_exact(page, "RecordDateFrom", start_date)
-        date_end_filled   = await self._fill_exact(page, "RecordDateTo",   end_date)
-        log.info("Date fields filled: start=%s end=%s", date_start_filled, date_end_filled)
-
-        # Step 4: Select all doc type checkboxes
-        # The page has DocTypeInfoCheckBox checkboxes — check all that match our targets
-        await self._select_doc_types(page)
-
-        # Step 5: Submit search
-        log.info("Submitting search...")
-        submitted = await self._click_search(page)
-        if not submitted:
-            log.error("Could not submit search form")
-            return
-
-        await asyncio.sleep(4)
         log.info("Results URL: %s", page.url)
 
-        # Step 6: Parse all result pages
-        total = await self._parse_all_pages(page)
-        log.info("Total records collected: %d", total)
+        # ── Step 6: Parse results ─────────────────────────────────
+        await self._parse_all_pages(page)
 
     async def _accept_disclaimer(self, page: Page):
-        """Accept Acclaim disclaimer — clicks the submit button."""
-        content = await page.content()
-        if "Disclaimer" not in content and "disclaimer" not in page.url.lower():
-            log.info("No disclaimer needed")
-            return
+        try:
+            # Check if disclaimer button exists
+            btn = page.locator("input[type='submit']").first
+            if await btn.count() > 0:
+                await btn.click()
+                await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                await asyncio.sleep(1)
+                log.info("Disclaimer accepted. URL: %s", page.url)
+        except Exception as e:
+            log.debug("Disclaimer step: %s", e)
 
-        for selector in [
-            "input[type='submit']",
-            "input[value*='Accept' i]",
-            "input[value*='Continue' i]",
-            "input[value*='Agree' i]",
-            "button:has-text('Accept')",
-            "a:has-text('Accept')",
-        ]:
+    async def _fill_field(self, page: Page, field_id: str, value: str):
+        """Fill field by exact ID — the IDs we confirmed from the log."""
+        try:
+            el = page.locator(f"#{field_id}")
+            await el.click(triple_click=True)
+            await el.fill(value)
+            log.info("✓ Filled #%s = %s", field_id, value)
+        except Exception as e:
+            log.warning("✗ Could not fill #%s: %s", field_id, e)
+            # Try by name as fallback
             try:
-                el = page.locator(selector).first
+                el = page.locator(f"[name='{field_id}']")
+                await el.click(triple_click=True)
+                await el.fill(value)
+                log.info("✓ Filled [name=%s] = %s (fallback)", field_id, value)
+            except Exception as e2:
+                log.warning("✗ Fallback also failed for %s: %s", field_id, e2)
+
+    async def _select_all(self, page: Page):
+        """Check the Select All checkbox to get all document types."""
+        # From the log: id='Checkbox1' name='SelectAllDocTypesToggle'
+        selectors = [
+            "#Checkbox1",
+            "[name='SelectAllDocTypesToggle']",
+        ]
+        for sel in selectors:
+            try:
+                el = page.locator(sel).first
                 if await el.count() > 0:
-                    await el.click()
-                    await page.wait_for_load_state("networkidle", timeout=10000)
-                    await asyncio.sleep(2)
-                    log.info("Disclaimer accepted via: %s", selector)
-                    return
-            except Exception:
-                pass
-
-        log.warning("Could not find disclaimer button — proceeding anyway")
-
-    async def _fill_exact(self, page: Page, field_id: str, value: str) -> bool:
-        """Fill a field by its exact ID."""
-        try:
-            el = page.locator(f"#{field_id}").first
-            if await el.count() > 0:
-                await el.click(triple_click=True)
-                await el.fill(value)
-                log.info("Filled #%s = %s", field_id, value)
-                return True
-        except Exception as e:
-            log.warning("Could not fill #%s: %s", field_id, e)
-
-        # Also try by name attribute
-        try:
-            el = page.locator(f"[name='{field_id}']").first
-            if await el.count() > 0:
-                await el.click(triple_click=True)
-                await el.fill(value)
-                log.info("Filled [name=%s] = %s", field_id, value)
-                return True
-        except Exception as e:
-            log.warning("Could not fill [name=%s]: %s", field_id, e)
-
-        return False
-
-    async def _select_doc_types(self, page: Page):
-        """
-        The Acclaim DocType page shows a list of doc types with checkboxes
-        named DocTypeInfoCheckBox. We need to either:
-        1. Check all boxes (select all) then search — gets everything, filter in parsing
-        2. Or type in DocTypesDisplay field to filter
-        Strategy: Use the SelectAllDocTypesToggle checkbox to select all, 
-        then we filter results by our target doc types during parsing.
-        """
-        # Try "Select All" checkbox first
-        try:
-            select_all = page.locator("#Checkbox1, [name='SelectAllDocTypesToggle']").first
-            if await select_all.count() > 0:
-                checked = await select_all.is_checked()
-                if not checked:
-                    await select_all.check()
+                    await el.check()
                     await asyncio.sleep(1)
-                log.info("Selected all doc types via SelectAllDocTypesToggle")
-                return
-        except Exception as e:
-            log.debug("SelectAll checkbox failed: %s", e)
+                    log.info("✓ Selected all doc types via %s", sel)
+                    return
+            except Exception as e:
+                log.debug("Select all %s failed: %s", sel, e)
 
-        # Fallback: check all DocTypeInfoCheckBox checkboxes
+        # Fallback: check every DocTypeInfoCheckBox
         try:
-            checkboxes = await page.query_selector_all("[name='DocTypeInfoCheckBox']")
-            log.info("Found %d doc type checkboxes", len(checkboxes))
-            for cb in checkboxes:
+            cbs = await page.query_selector_all("[name='DocTypeInfoCheckBox']")
+            log.info("Checking %d individual doc type boxes", len(cbs))
+            for cb in cbs[:50]:  # limit to first 50 to avoid timeout
                 try:
-                    is_checked = await cb.is_checked()
-                    if not is_checked:
+                    if not await cb.is_checked():
                         await cb.check()
                 except Exception:
                     pass
-            log.info("Checked all doc type checkboxes")
         except Exception as e:
             log.warning("Could not check doc type boxes: %s", e)
 
-    async def _click_search(self, page: Page) -> bool:
-        """Click the btnSearch submit button."""
-        for selector in [
-            "#btnSearch",
-            "input[type='submit']",
-            "button[type='submit']",
-            "input[value*='Search' i]",
-        ]:
+    async def _submit(self, page: Page):
+        """Click the search button."""
+        for sel in ["#btnSearch", "input[type='submit']", "button[type='submit']"]:
             try:
-                el = page.locator(selector).first
+                el = page.locator(sel).first
                 if await el.count() > 0:
                     await el.click()
-                    await page.wait_for_load_state("networkidle", timeout=20000)
-                    log.info("Clicked search via: %s", selector)
-                    return True
+                    await page.wait_for_load_state("domcontentloaded", timeout=20000)
+                    log.info("✓ Submitted via %s", sel)
+                    return
             except Exception:
                 pass
-        return False
+        log.error("Could not find submit button!")
 
-    async def _parse_all_pages(self, page: Page) -> int:
-        total    = 0
+    async def _parse_all_pages(self, page: Page):
+        """Parse result pages — stops if timeout reached."""
         page_num = 1
+        consecutive_empty = 0
 
         while True:
-            await asyncio.sleep(2)
+            if self.timed_out():
+                log.warning("Approaching time limit — stopping at page %d with %d records",
+                            page_num, len(self.records))
+                break
+
+            await asyncio.sleep(1)
             html  = await page.content()
             soup  = BeautifulSoup(html, "lxml")
             found = self._parse_table(soup)
-            total += found
-            log.info("Page %d: %d rows", page_num, found)
+            log.info("Page %d: %d rows found (total so far: %d)",
+                     page_num, found, len(self.records))
 
-            # Check for next page
-            next_el = None
-            for sel in [
-                "a:has-text('Next')",
-                "a:has-text('>')",
-                "li.next a",
-                ".pagination a:last-child",
-                "a[title='Next']",
-            ]:
-                try:
-                    el = page.locator(sel).first
-                    if await el.count() > 0:
-                        cls      = await el.get_attribute("class") or ""
-                        disabled = await el.get_attribute("disabled")
-                        if "disabled" not in cls and not disabled:
-                            next_el = el
-                            break
-                except Exception:
-                    pass
+            if found == 0:
+                consecutive_empty += 1
+                if consecutive_empty >= 2:
+                    log.info("Two empty pages — done")
+                    break
+            else:
+                consecutive_empty = 0
 
+            # Find next page button
+            next_el = await self._find_next(page)
             if not next_el:
-                log.info("No more pages after page %d", page_num)
+                log.info("No next page — done at page %d", page_num)
                 break
 
             try:
                 await next_el.click()
-                await page.wait_for_load_state("networkidle", timeout=15000)
+                await page.wait_for_load_state("domcontentloaded", timeout=10000)
                 page_num += 1
             except Exception as e:
-                log.warning("Pagination error: %s", e)
+                log.warning("Pagination failed: %s", e)
                 break
 
-        return total
+    async def _find_next(self, page: Page):
+        for sel in [
+            "a:has-text('Next')",
+            "a:has-text('>')",
+            "li.next a",
+            ".pagination a:last-child",
+            "a[title='Next Page']",
+        ]:
+            try:
+                el = page.locator(sel).first
+                if await el.count() > 0:
+                    cls      = await el.get_attribute("class") or ""
+                    disabled = await el.get_attribute("disabled")
+                    if "disabled" not in cls.lower() and not disabled:
+                        return el
+            except Exception:
+                pass
+        return None
 
     def _parse_table(self, soup: BeautifulSoup) -> int:
-        """Parse Acclaim results table."""
-        # Find largest table on page
         tables = soup.find_all("table")
         if not tables:
-            log.debug("No tables found on page")
             return 0
 
-        best = max(tables, key=lambda t: len(t.find_all("tr")), default=None)
-        if not best or len(best.find_all("tr")) < 2:
-            log.debug("No data rows in table")
+        # Pick table with most rows
+        best = max(tables, key=lambda t: len(t.find_all("tr")))
+        rows = best.find_all("tr")
+        if len(rows) < 2:
             return 0
 
-        header_row = best.find("tr")
         headers = [th.get_text(strip=True).lower()
-                   for th in header_row.find_all(["th", "td"])]
-        log.info("Table headers: %s", headers)
+                   for th in rows[0].find_all(["th", "td"])]
 
         count = 0
-        for row in best.find_all("tr")[1:]:
+        for row in rows[1:]:
             cells = row.find_all("td")
             if len(cells) < 2:
                 continue
@@ -386,13 +363,13 @@ class AcclaimScraper:
                 if rec:
                     self.records.append(rec)
                     count += 1
-            except Exception as exc:
-                log.debug("Row error: %s", exc)
+            except Exception as e:
+                log.debug("Row error: %s", e)
         return count
 
     def _parse_row(self, cells, headers, row) -> Optional[dict]:
-        def cell(idx):
-            return cells[idx].get_text(strip=True) if idx < len(cells) else ""
+        def cell(i):
+            return cells[i].get_text(strip=True) if i < len(cells) else ""
 
         def find(*names):
             for name in names:
@@ -401,32 +378,28 @@ class AcclaimScraper:
                         return cell(i)
             return ""
 
-        # Acclaim standard columns
-        doc_num  = find("instrument","instr","doc num","number","book") or cell(0)
-        doc_type = find("type","doctype","doc type") or cell(1)
+        doc_num  = find("instrument","instr","doc","number","book") or cell(0)
+        doc_type = (find("type","doctype") or cell(1)).strip().upper()
         filed    = find("record date","date","filed","recorded") or cell(2)
-        grantor  = find("grantor","owner","seller","party 1") or cell(3)
-        grantee  = find("grantee","buyer","party 2") or (cell(4) if len(cells) > 4 else "")
-        legal    = find("legal","description","memo") or (cell(5) if len(cells) > 5 else "")
-        amount   = find("consideration","amount","price") or (cell(6) if len(cells) > 6 else "")
+        grantor  = find("grantor","owner","seller") or cell(3)
+        grantee  = find("grantee","buyer") or (cell(4) if len(cells)>4 else "")
+        legal    = find("legal","description") or (cell(5) if len(cells)>5 else "")
+        amount   = find("consideration","amount") or (cell(6) if len(cells)>6 else "")
 
-        doc_type = doc_type.strip().upper()
-
-        # Only keep our target doc types
+        # Only keep target doc types
         if doc_type not in DOC_CATEGORIES:
             return None
 
-        cat, cat_label = DOC_CATEGORIES.get(doc_type, ("MISC", doc_type))
+        cat, cat_label = DOC_CATEGORIES[doc_type]
 
-        # Build document URL from any link in the row
         link = row.find("a", href=True)
         if link:
             href = link["href"]
             clerk_url = (href if href.startswith("http")
-                         else self.BASE + href if href.startswith("/")
-                         else self.BASE + "/" + href)
+                         else ACCLAIM_BASE + href if href.startswith("/")
+                         else ACCLAIM_BASE + "/" + href)
         else:
-            clerk_url = self.DOCTYPE_URL
+            clerk_url = DOCTYPE_URL
 
         if not doc_num and not grantor:
             return None
@@ -442,8 +415,8 @@ class AcclaimScraper:
             "amount":      parse_amount(amount),
             "legal":       legal.strip(),
             "clerk_url":   clerk_url,
-            "prop_address":"", "prop_city":"", "prop_state":"SC", "prop_zip":"",
-            "mail_address":"", "mail_city":"", "mail_state":"SC", "mail_zip":"",
+            "prop_address":"","prop_city":"","prop_state":"SC","prop_zip":"",
+            "mail_address":"","mail_city":"","mail_state":"SC","mail_zip":"",
         }
 
 
@@ -458,22 +431,23 @@ def save_records_json(records, *paths):
         "source":       "Horry County Register of Deeds",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(records),
-        "with_address": sum(1 for r in records if r.get("prop_address","").strip()),
+        "with_address": 0,
         "records":      records,
     }
     for path in paths:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2, default=str)
-        log.info("Saved → %s", path)
+        log.info("Saved → %s (%d records)", path, len(records))
 
 
 def export_ghl_csv(records, path):
     fieldnames = [
-        "First Name","Last Name","Mailing Address","Mailing City","Mailing State","Mailing Zip",
-        "Property Address","Property City","Property State","Property Zip",
-        "Lead Type","Document Type","Date Filed","Document Number","Amount/Debt Owed",
-        "Seller Score","Motivated Seller Flags","Source","Public Records URL",
+        "First Name","Last Name","Mailing Address","Mailing City",
+        "Mailing State","Mailing Zip","Property Address","Property City",
+        "Property State","Property Zip","Lead Type","Document Type",
+        "Date Filed","Document Number","Amount/Debt Owed","Seller Score",
+        "Motivated Seller Flags","Source","Public Records URL",
     ]
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as f:
@@ -481,9 +455,9 @@ def export_ghl_csv(records, path):
         writer.writeheader()
         for r in records:
             owner = r.get("owner","")
-            parts = owner.split(" ", 1) if owner else ["",""]
+            parts = owner.split(" ",1) if owner else ["",""]
             writer.writerow({
-                "First Name":            parts[0] if parts else "",
+                "First Name":            parts[0],
                 "Last Name":             parts[1] if len(parts)>1 else "",
                 "Mailing Address":       r.get("mail_address",""),
                 "Mailing City":          r.get("mail_city",""),
@@ -508,7 +482,8 @@ def export_ghl_csv(records, path):
 
 async def main():
     log.info("="*60)
-    log.info("Horry County Motivated Seller Scraper v4")
+    log.info("Horry County Scraper v5 — Fast Mode")
+    log.info("Hard timeout: %d minutes", SCRAPER_TIMEOUT//60)
     log.info("="*60)
 
     scraper = AcclaimScraper()
@@ -521,9 +496,9 @@ async def main():
         if key not in seen:
             seen.add(key)
             unique.append(r)
-    log.info("Unique records after dedup: %d", len(unique))
+    log.info("Unique after dedup: %d", len(unique))
 
-    # Score all records
+    # Score
     for r in unique:
         flags     = compute_flags(r)
         r["flags"]= flags
@@ -531,15 +506,12 @@ async def main():
     unique.sort(key=lambda r: r.get("score",0), reverse=True)
 
     repo = Path(__file__).parent.parent
-    save_records_json(
-        unique,
+    save_records_json(unique,
         str(repo/"dashboard"/"records.json"),
         str(repo/"data"/"records.json"),
     )
     export_ghl_csv(unique, str(repo/"data"/"leads_export.csv"))
-    log.info("Done. Total=%d | Avg score=%.0f",
-             len(unique),
-             sum(r.get("score",0) for r in unique)/len(unique) if unique else 0)
+    log.info("✓ Done. Total leads: %d", len(unique))
 
 
 if __name__ == "__main__":
