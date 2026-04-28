@@ -34,7 +34,7 @@ ACCLAIM_BASE  = "https://acclaimweb.horrycounty.org/AcclaimWeb"
 DOCTYPE_URL   = f"{ACCLAIM_BASE}/search/SearchTypeDocType"
 LOGIN_URL     = f"{ACCLAIM_BASE}/Account/Login"
 LOOK_BACK_DAYS = 7
-SCRAPER_TIMEOUT = 18 * 60  # 18 minutes hard stop
+SCRAPER_TIMEOUT = 18 * 60
 
 DOC_CATEGORIES = {
     "LP":       ("LP",      "Lis Pendens"),
@@ -119,10 +119,6 @@ def compute_score(record, flags):
     return min(score, 100)
 
 
-# ===========================================================================
-# Scraper
-# ===========================================================================
-
 class AcclaimScraper:
 
     def __init__(self):
@@ -140,8 +136,7 @@ class AcclaimScraper:
             return []
 
         if not self.username or not self.password:
-            log.error("HORRY_USERNAME or HORRY_PASSWORD not set in environment!")
-            log.error("Add them as GitHub Secrets in repo Settings → Secrets → Actions")
+            log.error("HORRY_USERNAME or HORRY_PASSWORD not set!")
             return []
 
         self.start_time = datetime.now().timestamp()
@@ -164,7 +159,7 @@ class AcclaimScraper:
             try:
                 success = await self._login(page)
                 if not success:
-                    log.error("Login failed — cannot continue")
+                    log.error("Login failed")
                     return []
                 await self._run(page)
             except Exception as exc:
@@ -176,15 +171,11 @@ class AcclaimScraper:
         return self.records
 
     async def _login(self, page: Page) -> bool:
-        """Log into Horry County Acclaim portal."""
         log.info("Navigating to portal...")
         await page.goto(ACCLAIM_BASE + "/", wait_until="domcontentloaded", timeout=20000)
         await asyncio.sleep(2)
+        log.info("Landing URL: %s", page.url)
 
-        current_url = page.url
-        log.info("Landing URL: %s", current_url)
-
-        # Accept disclaimer if present
         try:
             btn = page.locator("input[type='submit']").first
             if await btn.count() > 0:
@@ -195,45 +186,27 @@ class AcclaimScraper:
         except Exception:
             pass
 
-        # Check if we need to log in
+        await page.goto(DOCTYPE_URL, wait_until="domcontentloaded", timeout=15000)
+        await asyncio.sleep(2)
         content = await page.content()
+
         needs_login = (
             "login" in page.url.lower() or
-            "account" in page.url.lower() or
             "username" in content.lower() or
             "password" in content.lower() or
             "sign in" in content.lower()
         )
 
-        if not needs_login:
-            # Try navigating to a protected page to trigger login
-            await page.goto(DOCTYPE_URL, wait_until="domcontentloaded", timeout=15000)
-            await asyncio.sleep(2)
-            content = await page.content()
-            needs_login = (
-                "login" in page.url.lower() or
-                "username" in content.lower() or
-                "password" in content.lower()
-            )
-
         if needs_login:
             log.info("Login required — filling credentials...")
-            logged_in = await self._fill_login(page)
-            if not logged_in:
-                # Try navigating directly to login page
-                await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=15000)
-                await asyncio.sleep(2)
-                logged_in = await self._fill_login(page)
-            return logged_in
+            return await self._fill_login(page)
         else:
-            log.info("No login required — already authenticated")
+            log.info("No login required")
             return True
 
     async def _fill_login(self, page: Page) -> bool:
-        """Fill and submit the login form."""
         log.info("Filling login form on: %s", page.url)
 
-        # Dump all inputs for debugging
         inputs = await page.evaluate("""
             () => Array.from(document.querySelectorAll('input')).map(el => ({
                 id: el.id, name: el.name, type: el.type, placeholder: el.placeholder
@@ -241,7 +214,6 @@ class AcclaimScraper:
         """)
         log.info("Login page inputs: %s", inputs)
 
-        # Try common username field selectors
         username_filled = False
         for sel in [
             "#UserName", "#username", "#Email", "#email",
@@ -254,13 +226,12 @@ class AcclaimScraper:
                 if await el.count() > 0:
                     await el.click(triple_click=True)
                     await el.fill(self.username)
-                    log.info("✓ Username filled via %s", sel)
+                    log.info("Username filled via %s", sel)
                     username_filled = True
                     break
             except Exception:
                 pass
 
-        # Try common password field selectors
         password_filled = False
         for sel in [
             "#Password", "#password",
@@ -272,18 +243,16 @@ class AcclaimScraper:
                 if await el.count() > 0:
                     await el.click(triple_click=True)
                     await el.fill(self.password)
-                    log.info("✓ Password filled via %s", sel)
+                    log.info("Password filled via %s", sel)
                     password_filled = True
                     break
             except Exception:
                 pass
 
         if not username_filled or not password_filled:
-            log.error("Could not fill login form (user=%s pass=%s)",
-                      username_filled, password_filled)
+            log.error("Could not fill login form")
             return False
 
-        # Submit login form
         for sel in [
             "input[type='submit']",
             "button[type='submit']",
@@ -298,53 +267,37 @@ class AcclaimScraper:
                     await el.click()
                     await page.wait_for_load_state("domcontentloaded", timeout=15000)
                     await asyncio.sleep(2)
-                    log.info("✓ Login submitted via %s", sel)
+                    log.info("Login submitted via %s", sel)
                     break
             except Exception:
                 pass
 
-        # Verify login succeeded
         post_url     = page.url
         post_content = await page.content()
         log.info("Post-login URL: %s", post_url)
 
         if "login" in post_url.lower() or "invalid" in post_content.lower():
-            log.error("Login appears to have failed — still on login page")
+            log.error("Login failed — still on login page")
             return False
 
-        log.info("✓ Login successful!")
+        log.info("Login successful!")
         return True
 
     async def _run(self, page: Page):
         start_date, end_date = date_range_str()
-        log.info("Date range: %s → %s", start_date, end_date)
+        log.info("Date range: %s to %s", start_date, end_date)
 
-        # Navigate to Document Type search
         log.info("Loading DocType search page...")
         await page.goto(DOCTYPE_URL, wait_until="domcontentloaded", timeout=20000)
         await asyncio.sleep(3)
 
-        # Log all inputs for debugging
-        inputs = await page.evaluate("""
-            () => Array.from(document.querySelectorAll('input,select')).map(el => ({
-                id: el.id, name: el.name, type: el.type
-            }))
-        """)
-        log.info("Search page inputs: %s", inputs)
-
-        # Fill dates with exact field IDs confirmed from previous runs
         await self._fill_field(page, "RecordDateFrom", start_date)
         await self._fill_field(page, "RecordDateTo",   end_date)
-
-        # Select all doc types
         await self._select_all(page)
-
-        # Submit
         await self._submit(page)
         await asyncio.sleep(3)
         log.info("Results URL: %s", page.url)
 
-        # Parse all result pages
         await self._parse_all_pages(page)
 
     async def _fill_field(self, page: Page, field_id: str, value: str):
@@ -354,11 +307,11 @@ class AcclaimScraper:
                 if await el.count() > 0:
                     await el.click(triple_click=True)
                     await el.fill(value)
-                    log.info("✓ Filled %s = %s", field_id, value)
+                    log.info("Filled %s = %s", field_id, value)
                     return
             except Exception as e:
-                log.debug("Fill %s failed via %s: %s", field_id, sel, e)
-        log.warning("✗ Could not fill %s", field_id)
+                log.debug("Fill %s failed: %s", field_id, e)
+        log.warning("Could not fill %s", field_id)
 
     async def _select_all(self, page: Page):
         for sel in ["#Checkbox1", "[name='SelectAllDocTypesToggle']"]:
@@ -367,11 +320,10 @@ class AcclaimScraper:
                 if await el.count() > 0:
                     await el.check()
                     await asyncio.sleep(1)
-                    log.info("✓ Selected all doc types via %s", sel)
+                    log.info("Selected all doc types via %s", sel)
                     return
             except Exception:
                 pass
-        # Fallback: check individual boxes
         try:
             cbs = await page.query_selector_all("[name='DocTypeInfoCheckBox']")
             log.info("Checking %d individual checkboxes", len(cbs))
@@ -391,19 +343,19 @@ class AcclaimScraper:
                 if await el.count() > 0:
                     await el.click()
                     await page.wait_for_load_state("domcontentloaded", timeout=20000)
-                    log.info("✓ Search submitted via %s", sel)
+                    log.info("Search submitted via %s", sel)
                     return
             except Exception:
                 pass
         log.error("Could not submit search form")
 
     async def _parse_all_pages(self, page: Page):
-        page_num         = 1
+        page_num          = 1
         consecutive_empty = 0
 
         while True:
             if self.timed_out():
-                log.warning("Time limit reached — stopping at page %d (%d records)",
+                log.warning("Time limit — stopping at page %d (%d records)",
                             page_num, len(self.records))
                 break
 
@@ -434,7 +386,7 @@ class AcclaimScraper:
 
     async def _find_next(self, page: Page):
         for sel in ["a:has-text('Next')", "a:has-text('>')",
-                    "li.next a", ".pagination a:last-child", "a[title='Next Page']"]:
+                    "li.next a", ".pagination a:last-child"]:
             try:
                 el = page.locator(sel).first
                 if await el.count() > 0:
@@ -525,10 +477,6 @@ class AcclaimScraper:
         }
 
 
-# ===========================================================================
-# Save + Export
-# ===========================================================================
-
 def save_records_json(records, *paths):
     start_date, end_date = date_range_str()
     payload = {
@@ -593,7 +541,6 @@ async def main():
     scraper = AcclaimScraper()
     raw     = await scraper.scrape()
 
-    # Deduplicate
     seen, unique = set(), []
     for r in raw:
         key = (r.get("doc_num",""), r.get("doc_type",""))
@@ -602,7 +549,6 @@ async def main():
             unique.append(r)
     log.info("Unique after dedup: %d", len(unique))
 
-    # Score
     for r in unique:
         flags     = compute_flags(r)
         r["flags"]= flags
@@ -615,7 +561,7 @@ async def main():
         str(repo/"data"/"records.json"),
     )
     export_ghl_csv(unique, str(repo/"data"/"leads_export.csv"))
-    log.info("✓ Done. Total leads: %d", len(unique))
+    log.info("Done. Total leads: %d", len(unique))
 
 
 if __name__ == "__main__":
