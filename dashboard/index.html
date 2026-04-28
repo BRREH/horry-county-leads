@@ -7,43 +7,35 @@
 <title>Horry County — Motivated Seller Leads</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Source+Sans+3:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* ============================================================
-   DESIGN SYSTEM — Dark industrial / data-terminal aesthetic
-   ============================================================ */
 :root {
-  --bg:          #0b0d12;
-  --bg2:         #111420;
-  --bg3:         #181c2a;
-  --border:      #1f2540;
-  --border2:     #2a3060;
-  --text:        #c8d0e8;
-  --text2:       #7880a0;
-  --text3:       #454d6e;
-  --accent:      #4f8fff;
-  --accent2:     #6e5cf7;
-  --green:       #22d3a0;
-  --amber:       #f59e0b;
-  --red:         #ef4444;
-  --orange:      #f97316;
-  --cyan:        #22d3ee;
+  --bg:       #f7f6f2;
+  --bg2:      #ffffff;
+  --bg3:      #f0ede8;
+  --border:   #e2ddd6;
+  --border2:  #c8c0b5;
+  --text:     #1a1610;
+  --text2:    #4a4540;
+  --text3:    #8a8278;
+  --accent:   #1d4ed8;
+  --accent2:  #7c3aed;
+  --green:    #059669;
+  --amber:    #b45309;
+  --red:      #dc2626;
+  --orange:   #ea580c;
+  --cyan:     #0369a1;
 
-  /* Score color stops */
-  --score-low:   #454d6e;
-  --score-mid:   #f59e0b;
-  --score-high:  #22d3a0;
-
-  --radius:      6px;
-  --radius2:     10px;
-  --mono:        'DM Mono', 'Fira Code', monospace;
-  --sans:        'DM Sans', system-ui, sans-serif;
-  --display:     'Syne', var(--sans);
-  --shadow:      0 4px 24px rgba(0,0,0,.5);
+  --mono:     'Source Code Pro', monospace;
+  --sans:     'Source Sans 3', system-ui, sans-serif;
+  --display:  'Playfair Display', Georgia, serif;
+  --shadow:   0 2px 12px rgba(0,0,0,.08);
+  --shadow2:  0 8px 32px rgba(0,0,0,.12);
+  --radius:   6px;
+  --radius2:  10px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 html { scroll-behavior: smooth; }
 
 body {
@@ -53,28 +45,12 @@ body {
   font-size: 14px;
   line-height: 1.6;
   min-height: 100vh;
-  overflow-x: hidden;
-}
-
-/* ── SCANLINE overlay ── */
-body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,.03) 2px,
-    rgba(0,0,0,.03) 4px
-  );
-  pointer-events: none;
-  z-index: 9999;
 }
 
 /* ── HEADER ── */
 header {
-  background: linear-gradient(135deg, #0e1220 0%, #0b0d12 100%);
-  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  border-bottom: 2px solid var(--border);
   padding: 0 24px;
   position: sticky;
   top: 0;
@@ -83,38 +59,38 @@ header {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  height: 60px;
+  height: 64px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 
 .header-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-shrink: 0;
 }
 
 .brand-badge {
-  width: 32px; height: 32px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  width: 36px; height: 36px;
+  background: var(--accent);
   border-radius: var(--radius);
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-  box-shadow: 0 0 16px rgba(79,143,255,.3);
+  font-size: 18px;
 }
 
 .brand-title {
   font-family: var(--display);
   font-weight: 700;
-  font-size: 15px;
-  color: #fff;
-  letter-spacing: .02em;
+  font-size: 17px;
+  color: var(--text);
+  letter-spacing: .01em;
 }
 
 .brand-sub {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text3);
   font-family: var(--mono);
-  letter-spacing: .05em;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 
 .header-meta {
@@ -124,17 +100,12 @@ header {
 }
 
 .status-dot {
-  width: 7px; height: 7px;
+  width: 8px; height: 8px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 8px var(--green);
   animation: pulse 2s ease-in-out infinite;
 }
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: .4; }
-}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
 .last-updated {
   font-family: var(--mono);
@@ -144,99 +115,92 @@ header {
 
 .btn-export {
   display: flex; align-items: center; gap: 6px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  background: var(--accent);
   color: #fff;
   border: none;
-  padding: 7px 14px;
+  padding: 8px 16px;
   border-radius: var(--radius);
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: .05em;
-  transition: opacity .15s, transform .1s;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background .15s, transform .1s;
 }
-.btn-export:hover { opacity: .85; transform: translateY(-1px); }
+.btn-export:hover { background: #1e40af; transform: translateY(-1px); }
 .btn-export:active { transform: translateY(0); }
 
 /* ── STATS BAR ── */
 .stats-bar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 1px;
-  background: var(--border);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  background: var(--bg2);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 
 .stat-card {
-  background: var(--bg2);
-  padding: 14px 20px;
+  padding: 16px 20px;
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+.stat-card:last-child { border-right: none; }
 
 .stat-label {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text3);
-  letter-spacing: .08em;
+  letter-spacing: .1em;
   text-transform: uppercase;
+  font-weight: 500;
 }
 
 .stat-value {
   font-family: var(--display);
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 800;
-  color: #fff;
+  color: var(--text);
   line-height: 1;
 }
+.stat-value.blue   { color: var(--accent); }
+.stat-value.green  { color: var(--green); }
+.stat-value.amber  { color: var(--amber); }
+.stat-value.red    { color: var(--red); }
 
-.stat-value.accent  { color: var(--accent); }
-.stat-value.green   { color: var(--green); }
-.stat-value.amber   { color: var(--amber); }
-.stat-value.red     { color: var(--red); }
-
-/* ── MAIN LAYOUT ── */
+/* ── LAYOUT ── */
 .main {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 0;
-  min-height: calc(100vh - 60px);
+  grid-template-columns: 240px 1fr;
+  min-height: calc(100vh - 64px - 72px);
 }
 
 /* ── SIDEBAR ── */
 .sidebar {
   background: var(--bg2);
   border-right: 1px solid var(--border);
-  padding: 20px 16px;
+  padding: 20px 14px;
   overflow-y: auto;
   position: sticky;
-  top: 60px;
-  height: calc(100vh - 60px);
+  top: 64px;
+  height: calc(100vh - 64px);
 }
 
-.sidebar-section {
-  margin-bottom: 24px;
-}
+.sidebar-section { margin-bottom: 24px; }
 
 .sidebar-title {
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 9px;
+  font-weight: 600;
   color: var(--text3);
-  letter-spacing: .1em;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
 
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+.filter-group { display: flex; flex-direction: column; gap: 2px; }
 
 .filter-btn {
   display: flex;
@@ -248,8 +212,8 @@ header {
   padding: 7px 10px;
   border-radius: var(--radius);
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 11px;
+  font-family: var(--sans);
+  font-size: 13px;
   text-align: left;
   transition: all .12s;
   width: 100%;
@@ -257,75 +221,77 @@ header {
 .filter-btn:hover {
   background: var(--bg3);
   color: var(--text);
-  border-color: var(--border2);
+  border-color: var(--border);
 }
 .filter-btn.active {
-  background: rgba(79,143,255,.1);
-  border-color: rgba(79,143,255,.4);
+  background: #eff6ff;
+  border-color: #bfdbfe;
   color: var(--accent);
+  font-weight: 600;
 }
 
 .filter-count {
   background: var(--bg3);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 1px 7px;
+  padding: 0 7px;
   font-size: 10px;
   color: var(--text3);
+  font-family: var(--mono);
 }
 .filter-btn.active .filter-count {
-  background: rgba(79,143,255,.2);
+  background: #dbeafe;
+  border-color: #93c5fd;
   color: var(--accent);
 }
 
-/* ── SEARCH + SORT BAR ── */
+/* ── TOOLBAR ── */
+.content-area { display: flex; flex-direction: column; }
+
 .toolbar {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--bg2);
   position: sticky;
-  top: 60px;
+  top: 64px;
   z-index: 50;
 }
 
-.search-wrap {
-  position: relative;
-  flex: 1;
-}
-
+.search-wrap { position: relative; flex: 1; }
 .search-wrap svg {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text3);
+  position: absolute; left: 10px; top: 50%;
+  transform: translateY(-50%); color: var(--text3);
 }
 
 .search-input {
   width: 100%;
-  background: var(--bg2);
+  background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text);
   padding: 8px 12px 8px 34px;
   border-radius: var(--radius);
-  font-family: var(--mono);
-  font-size: 12px;
+  font-family: var(--sans);
+  font-size: 13px;
   outline: none;
-  transition: border-color .15s;
+  transition: border-color .15s, box-shadow .15s;
 }
 .search-input::placeholder { color: var(--text3); }
-.search-input:focus { border-color: var(--accent); }
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(29,78,216,.1);
+}
 
 .sort-select {
-  background: var(--bg2);
+  background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text2);
   padding: 8px 12px;
   border-radius: var(--radius);
-  font-family: var(--mono);
-  font-size: 11px;
+  font-family: var(--sans);
+  font-size: 13px;
   outline: none;
   cursor: pointer;
 }
@@ -338,38 +304,30 @@ header {
   white-space: nowrap;
 }
 
-/* ── TABLE CONTAINER ── */
-.table-wrap {
-  overflow-x: auto;
-  flex: 1;
-}
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
 
-.content-area {
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── LEADS TABLE ── */
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 13px;
+  background: var(--bg2);
 }
 
 thead tr {
   background: var(--bg3);
   border-bottom: 2px solid var(--border2);
   position: sticky;
-  top: 109px;
+  top: 113px;
   z-index: 40;
 }
 
 th {
-  padding: 10px 14px;
+  padding: 11px 14px;
   text-align: left;
   font-family: var(--mono);
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text3);
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -378,36 +336,34 @@ th {
   user-select: none;
 }
 th:hover { color: var(--text); }
-th.sorted { color: var(--accent); }
 
 tbody tr {
   border-bottom: 1px solid var(--border);
   transition: background .1s;
 }
-tbody tr:hover { background: rgba(79,143,255,.04); }
+tbody tr:hover { background: #f8f9ff; cursor: pointer; }
 
 td {
-  padding: 10px 14px;
+  padding: 11px 14px;
   vertical-align: top;
   color: var(--text);
 }
-
-td.mono { font-family: var(--mono); font-size: 11px; }
 
 /* ── SCORE PILL ── */
 .score-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px; height: 24px;
+  width: 42px; height: 26px;
   border-radius: 20px;
   font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
 }
-.score-high { background: rgba(34,211,160,.15); color: var(--green); }
-.score-mid  { background: rgba(245,158,11,.15);  color: var(--amber); }
-.score-low  { background: rgba(69,77,110,.2);     color: var(--text3); }
+.score-high { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.score-mid  { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.score-low  { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
 
 /* ── DOC TYPE BADGE ── */
 .doc-badge {
@@ -416,89 +372,62 @@ td.mono { font-family: var(--mono); font-size: 11px; }
   border-radius: 4px;
   font-family: var(--mono);
   font-size: 10px;
-  font-weight: 500;
-  letter-spacing: .05em;
+  font-weight: 600;
+  letter-spacing: .04em;
   white-space: nowrap;
+  border: 1px solid;
 }
-.badge-LP     { background: rgba(239,68,68,.15);   color: #f87171; border: 1px solid rgba(239,68,68,.2); }
-.badge-NOFC   { background: rgba(249,115,22,.15);  color: #fb923c; border: 1px solid rgba(249,115,22,.2); }
-.badge-TAXDEED{ background: rgba(245,158,11,.15);  color: #fbbf24; border: 1px solid rgba(245,158,11,.2); }
-.badge-JUD    { background: rgba(110,92,247,.15);  color: #a78bfa; border: 1px solid rgba(110,92,247,.2); }
-.badge-LN     { background: rgba(34,211,238,.15);  color: #22d3ee; border: 1px solid rgba(34,211,238,.2); }
-.badge-PRO    { background: rgba(79,143,255,.15);  color: #60a5fa; border: 1px solid rgba(79,143,255,.2); }
-.badge-NOC    { background: rgba(34,211,160,.15);  color: #34d399; border: 1px solid rgba(34,211,160,.2); }
-.badge-RELLP  { background: rgba(100,116,139,.15); color: #94a3b8; border: 1px solid rgba(100,116,139,.2); }
-.badge-MISC   { background: rgba(69,77,110,.2);    color: var(--text3); border: 1px solid var(--border); }
+.badge-LP      { background:#fee2e2; color:#991b1b; border-color:#fca5a5; }
+.badge-NOFC    { background:#ffedd5; color:#9a3412; border-color:#fdba74; }
+.badge-TAXDEED { background:#fef9c3; color:#854d0e; border-color:#fde047; }
+.badge-JUD     { background:#ede9fe; color:#5b21b6; border-color:#c4b5fd; }
+.badge-LN      { background:#e0f2fe; color:#0c4a6e; border-color:#7dd3fc; }
+.badge-PRO     { background:#dbeafe; color:#1e3a8a; border-color:#93c5fd; }
+.badge-NOC     { background:#d1fae5; color:#064e3b; border-color:#6ee7b7; }
+.badge-RELLP   { background:#f3f4f6; color:#374151; border-color:#d1d5db; }
+.badge-MISC    { background:#f9fafb; color:#6b7280; border-color:#e5e7eb; }
 
 /* ── FLAGS ── */
-.flag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
+.flag-list { display: flex; flex-wrap: wrap; gap: 3px; }
 .flag-tag {
   font-family: var(--mono);
   font-size: 9px;
   padding: 2px 6px;
   border-radius: 3px;
-  background: rgba(79,143,255,.08);
-  color: var(--text2);
-  border: 1px solid rgba(79,143,255,.15);
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
   white-space: nowrap;
 }
-.flag-tag.hot { background: rgba(239,68,68,.1); color: #f87171; border-color: rgba(239,68,68,.2); }
+.flag-tag.hot { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
 
 /* ── AMOUNT ── */
-.amount-cell {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--amber);
-}
-.amount-cell.large { color: var(--red); font-weight: 500; }
+.amount-cell { font-family: var(--mono); color: var(--amber); font-weight: 500; }
+.amount-cell.large { color: var(--red); font-weight: 600; }
 
 /* ── LINK ── */
-a.doc-link {
-  color: var(--accent);
-  text-decoration: none;
-  font-family: var(--mono);
-  font-size: 10px;
-}
+a.doc-link { color: var(--accent); text-decoration: none; font-size: 12px; }
 a.doc-link:hover { text-decoration: underline; }
 
-/* ── EMPTY STATE ── */
+/* ── ADDRESS ── */
+.address-block { display: flex; flex-direction: column; gap: 1px; }
+.address-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.address-line.primary { color: var(--text); font-size: 13px; }
+.address-line.secondary { color: var(--text3); font-size: 11px; font-family: var(--mono); }
+
+/* ── EMPTY / LOADING ── */
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 24px;
-  color: var(--text3);
-  gap: 12px;
-  text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 80px 24px;
+  color: var(--text3); gap: 12px; text-align: center;
 }
+.empty-icon { font-size: 48px; opacity: .5; }
+.empty-title { font-family: var(--display); font-size: 20px; font-weight: 700; color: var(--text2); }
 
-.empty-icon {
-  font-size: 48px;
-  opacity: .4;
-}
-
-.empty-title {
-  font-family: var(--display);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text2);
-}
-
-/* ── LOADING ── */
 .loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 60px;
-  gap: 12px;
-  color: var(--text3);
-  font-family: var(--mono);
-  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 60px; gap: 12px; color: var(--text3);
+  font-family: var(--mono); font-size: 13px;
 }
 .spinner {
   width: 20px; height: 20px;
@@ -509,220 +438,137 @@ a.doc-link:hover { text-decoration: underline; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── ADDRESS CELL ── */
-.address-block { display: flex; flex-direction: column; gap: 2px; }
-.address-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-.address-line.primary { color: var(--text); font-size: 12px; }
-.address-line.secondary { color: var(--text3); font-size: 10px; font-family: var(--mono); }
-
-/* ── DETAIL MODAL ── */
+/* ── MODAL ── */
 .modal-overlay {
-  display: none;
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.7);
-  backdrop-filter: blur(4px);
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.4);
+  backdrop-filter: blur(3px);
   z-index: 1000;
-  align-items: center;
-  justify-content: center;
+  align-items: center; justify-content: center;
 }
 .modal-overlay.open { display: flex; }
 
 .modal {
   background: var(--bg2);
-  border: 1px solid var(--border2);
+  border: 1px solid var(--border);
   border-radius: var(--radius2);
-  width: min(660px, 95vw);
-  max-height: 85vh;
+  width: min(680px, 95vw);
+  max-height: 88vh;
   overflow-y: auto;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow2);
   animation: slideUp .2s ease;
 }
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to   { transform: translateY(0);   opacity: 1; }
-}
+@keyframes slideUp { from{transform:translateY(16px);opacity:0} to{transform:translateY(0);opacity:1} }
 
 .modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--border);
-  gap: 12px;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 22px 26px 16px; border-bottom: 1px solid var(--border); gap: 12px;
 }
-
-.modal-title {
-  font-family: var(--display);
-  font-size: 18px;
-  font-weight: 700;
-  color: #fff;
-}
+.modal-title { font-family: var(--display); font-size: 20px; font-weight: 700; color: var(--text); }
 
 .modal-close {
-  background: none;
-  border: none;
-  color: var(--text3);
-  cursor: pointer;
-  font-size: 20px;
-  line-height: 1;
-  padding: 2px 6px;
-  border-radius: 4px;
-  flex-shrink: 0;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); cursor: pointer; font-size: 16px;
+  padding: 4px 10px; border-radius: var(--radius); flex-shrink: 0;
 }
-.modal-close:hover { background: var(--bg3); color: var(--text); }
+.modal-close:hover { background: var(--border); color: var(--text); }
 
 .modal-body {
-  padding: 20px 24px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px 24px;
+  padding: 20px 26px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px;
 }
-
-.modal-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+.modal-field { display: flex; flex-direction: column; gap: 4px; }
 .modal-field.full { grid-column: 1 / -1; }
 
 .modal-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--text3);
-  letter-spacing: .1em;
-  text-transform: uppercase;
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  color: var(--text3); letter-spacing: .1em; text-transform: uppercase;
 }
-
-.modal-value {
-  font-size: 13px;
-  color: var(--text);
-  word-break: break-word;
-}
-.modal-value.mono { font-family: var(--mono); font-size: 12px; }
+.modal-value { font-size: 14px; color: var(--text); word-break: break-word; }
+.modal-value.mono { font-family: var(--mono); font-size: 12px; color: var(--text2); }
 
 .modal-footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  padding: 16px 26px; border-top: 1px solid var(--border);
+  display: flex; gap: 10px; flex-wrap: wrap; background: var(--bg3);
+  border-radius: 0 0 var(--radius2) var(--radius2);
 }
 
 .btn-secondary {
-  padding: 8px 16px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border2);
-  background: transparent;
-  color: var(--text2);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: 11px;
-  transition: all .12s;
+  padding: 8px 16px; border-radius: var(--radius);
+  border: 1px solid var(--border2); background: var(--bg2);
+  color: var(--text2); cursor: pointer; font-family: var(--sans);
+  font-size: 13px; font-weight: 500; transition: all .12s;
 }
-.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); background: #eff6ff; }
 
 /* ── SCORE BAR ── */
-.score-bar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+.score-bar-wrap { display: flex; align-items: center; gap: 10px; }
 .score-bar-bg {
-  flex: 1;
-  height: 6px;
-  background: var(--bg3);
-  border-radius: 3px;
-  overflow: hidden;
+  flex: 1; height: 8px; background: var(--bg3);
+  border-radius: 4px; overflow: hidden; border: 1px solid var(--border);
 }
-.score-bar-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width .6s ease;
+.score-bar-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+
+/* ── DIVIDER ── */
+.section-divider {
+  padding: 6px 20px 4px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: .06em;
+  text-transform: uppercase;
 }
 
-/* ── RESPONSIVE ── */
 @media (max-width: 900px) {
   .main { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
 }
-
 @media (max-width: 600px) {
-  .stats-bar { grid-template-columns: repeat(2, 1fr); }
-  .header-brand .brand-sub { display: none; }
-  .btn-export span { display: none; }
+  .stats-bar { grid-template-columns: repeat(2,1fr); }
+  .stat-card { border-bottom: 1px solid var(--border); }
 }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <header>
   <div class="header-brand">
     <div class="brand-badge">🏚</div>
     <div>
       <div class="brand-title">Horry County Leads</div>
-      <div class="brand-sub">MOTIVATED SELLER INTELLIGENCE</div>
+      <div class="brand-sub">Motivated Seller Intelligence</div>
     </div>
   </div>
   <div class="header-meta">
     <div class="status-dot"></div>
     <div class="last-updated" id="lastUpdated">Loading…</div>
     <button class="btn-export" onclick="exportCSV()">
-      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4 4-4M12 4v12"/>
-      </svg>
-      <span>Export GHL CSV</span>
+      ⬇ Export GHL CSV
     </button>
   </div>
 </header>
 
-<!-- STATS BAR -->
 <div class="stats-bar" id="statsBar">
-  <div class="stat-card">
-    <div class="stat-label">Total Leads</div>
-    <div class="stat-value accent" id="statTotal">—</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">With Address</div>
-    <div class="stat-value green" id="statAddr">—</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">High Score (70+)</div>
-    <div class="stat-value amber" id="statHigh">—</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Pre-Foreclosure</div>
-    <div class="stat-value red" id="statFC">—</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Lis Pendens</div>
-    <div class="stat-value red" id="statLP">—</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Judgments</div>
-    <div class="stat-value" id="statJUD">—</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Liens</div>
-    <div class="stat-value" id="statLN">—</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Avg Score</div>
-    <div class="stat-value accent" id="statAvg">—</div>
-  </div>
+  <div class="stat-card"><div class="stat-label">Total Leads</div><div class="stat-value blue" id="statTotal">—</div></div>
+  <div class="stat-card"><div class="stat-label">With Address</div><div class="stat-value green" id="statAddr">—</div></div>
+  <div class="stat-card"><div class="stat-label">High Score 70+</div><div class="stat-value amber" id="statHigh">—</div></div>
+  <div class="stat-card"><div class="stat-label">Pre-Foreclosure</div><div class="stat-value red" id="statFC">—</div></div>
+  <div class="stat-card"><div class="stat-label">Lis Pendens</div><div class="stat-value red" id="statLP">—</div></div>
+  <div class="stat-card"><div class="stat-label">Judgments</div><div class="stat-value" id="statJUD">—</div></div>
+  <div class="stat-card"><div class="stat-label">Liens</div><div class="stat-value" id="statLN">—</div></div>
+  <div class="stat-card"><div class="stat-label">Avg Score</div><div class="stat-value blue" id="statAvg">—</div></div>
 </div>
 
-<!-- MAIN -->
 <div class="main">
-
-  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-title">Lead Type</div>
       <div class="filter-group" id="typeFilters"></div>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-title">Score</div>
+      <div class="sidebar-title">Score Range</div>
       <div class="filter-group">
         <button class="filter-btn active" data-score="all" onclick="setScoreFilter(this,'all')">All Scores</button>
         <button class="filter-btn" data-score="high" onclick="setScoreFilter(this,'high')">🔥 High (70–100)</button>
@@ -740,62 +586,56 @@ a.doc-link:hover { text-decoration: underline; }
         <button class="filter-btn" data-flag="Tax lien" onclick="setFlagFilter(this,'Tax lien')">Tax Lien</button>
         <button class="filter-btn" data-flag="Mechanic lien" onclick="setFlagFilter(this,'Mechanic lien')">Mechanic Lien</button>
         <button class="filter-btn" data-flag="Probate / estate" onclick="setFlagFilter(this,'Probate / estate')">Probate / Estate</button>
-        <button class="filter-btn" data-flag="LLC / corp owner" onclick="setFlagFilter(this,'LLC / corp owner')">LLC / Corp</button>
+        <button class="filter-btn" data-flag="LLC / corp owner" onclick="setFlagFilter(this,'LLC / corp owner')">LLC / Corp Owner</button>
         <button class="filter-btn" data-flag="New this week" onclick="setFlagFilter(this,'New this week')">New This Week</button>
       </div>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-title">Address</div>
+      <div class="sidebar-title">Has Address</div>
       <div class="filter-group">
         <button class="filter-btn active" data-addr="all" onclick="setAddrFilter(this,'all')">All Records</button>
-        <button class="filter-btn" data-addr="yes" onclick="setAddrFilter(this,'yes')">Has Address</button>
-        <button class="filter-btn" data-addr="no" onclick="setAddrFilter(this,'no')">No Address</button>
+        <button class="filter-btn" data-addr="yes" onclick="setAddrFilter(this,'yes')">✓ Has Address</button>
+        <button class="filter-btn" data-addr="no" onclick="setAddrFilter(this,'no')">✗ No Address</button>
       </div>
     </div>
   </aside>
 
-  <!-- CONTENT -->
   <div class="content-area">
-    <!-- TOOLBAR -->
     <div class="toolbar">
       <div class="search-wrap">
         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/>
         </svg>
-        <input class="search-input" id="searchInput" placeholder="Search owner, address, doc #, legal description…" oninput="applyFilters()">
+        <input class="search-input" id="searchInput" placeholder="Search owner name, address, document number, legal description…" oninput="applyFilters()">
       </div>
       <select class="sort-select" id="sortSelect" onchange="applyFilters()">
-        <option value="score_desc">Score ↓</option>
-        <option value="score_asc">Score ↑</option>
-        <option value="date_desc">Date ↓ (Newest)</option>
-        <option value="date_asc">Date ↑ (Oldest)</option>
-        <option value="amount_desc">Amount ↓</option>
-        <option value="owner_asc">Owner A–Z</option>
+        <option value="score_desc">Score — High to Low</option>
+        <option value="score_asc">Score — Low to High</option>
+        <option value="date_desc">Date — Newest First</option>
+        <option value="date_asc">Date — Oldest First</option>
+        <option value="amount_desc">Amount — Largest First</option>
+        <option value="owner_asc">Owner — A to Z</option>
       </select>
       <div class="result-count" id="resultCount"></div>
     </div>
 
-    <!-- TABLE -->
     <div class="table-wrap">
       <div id="tableContainer">
-        <div class="loading">
-          <div class="spinner"></div>
-          Loading leads…
-        </div>
+        <div class="loading"><div class="spinner"></div> Loading leads…</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- DETAIL MODAL -->
+<!-- MODAL -->
 <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
-  <div class="modal" id="modal">
+  <div class="modal">
     <div class="modal-header">
       <div>
         <div class="modal-title" id="modalTitle">Lead Detail</div>
-        <div id="modalBadgeWrap" style="margin-top:6px"></div>
+        <div id="modalBadgeWrap" style="margin-top:8px"></div>
       </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <button class="modal-close" onclick="closeModal()">✕ Close</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
     <div class="modal-footer" id="modalFooter"></div>
@@ -803,26 +643,19 @@ a.doc-link:hover { text-decoration: underline; }
 </div>
 
 <script>
-// ============================================================
-// DATA & STATE
-// ============================================================
 let ALL_RECORDS = [];
-let filtered = [];
-let activeType = 'all';
+let filtered    = [];
+let activeType  = 'all';
 let activeScore = 'all';
 let activeFlag  = 'all';
 let activeAddr  = 'all';
 
 const CAT_LABELS = {
-  LP: 'Lis Pendens', NOFC: 'Notice of Foreclosure', TAXDEED: 'Tax Deed',
-  JUD: 'Judgment', LN: 'Lien', PRO: 'Probate', NOC: 'Notice of Comm.', RELLP: 'Release LP',
+  LP:'Lis Pendens', NOFC:'Notice of Foreclosure', TAXDEED:'Tax Deed',
+  JUD:'Judgment', LN:'Lien', PRO:'Probate', NOC:'Notice of Comm.', RELLP:'Release LP',
 };
-
 const TYPE_ORDER = ['LP','NOFC','TAXDEED','JUD','LN','PRO','NOC','RELLP'];
 
-// ============================================================
-// FETCH DATA
-// ============================================================
 async function loadData() {
   try {
     const resp = await fetch('records.json?t=' + Date.now());
@@ -831,11 +664,10 @@ async function loadData() {
     if (data.fetched_at) {
       const d = new Date(data.fetched_at);
       document.getElementById('lastUpdated').textContent =
-        'Updated ' + d.toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        'Updated ' + d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
     }
 
-    ALL_RECORDS = (data.records || []).map((r, i) => ({ ...r, _id: i }));
-
+    ALL_RECORDS = (data.records||[]).map((r,i)=>({...r,_id:i}));
     updateStats();
     buildTypeFilters();
     applyFilters();
@@ -844,95 +676,74 @@ async function loadData() {
       `<div class="empty-state">
         <div class="empty-icon">⚠️</div>
         <div class="empty-title">Could not load records.json</div>
-        <div style="color:var(--text3);font-family:var(--mono);font-size:11px">${e.message}</div>
+        <div style="color:var(--text3);font-family:var(--mono);font-size:12px;margin-top:4px">${e.message}</div>
       </div>`;
   }
 }
 
-// ============================================================
-// STATS
-// ============================================================
 function updateStats() {
-  const recs = ALL_RECORDS;
-  document.getElementById('statTotal').textContent = recs.length;
-  document.getElementById('statAddr').textContent  = recs.filter(r => r.prop_address).length;
-  document.getElementById('statHigh').textContent  = recs.filter(r => r.score >= 70).length;
-  document.getElementById('statFC').textContent    = recs.filter(r => r.doc_type === 'NOFC').length;
-  document.getElementById('statLP').textContent    = recs.filter(r => r.doc_type === 'LP').length;
-  document.getElementById('statJUD').textContent   = recs.filter(r => r.cat === 'JUD').length;
-  document.getElementById('statLN').textContent    = recs.filter(r => r.cat === 'LN').length;
-  const avg = recs.length ? Math.round(recs.reduce((s,r)=>s+(r.score||0),0)/recs.length) : 0;
+  const r = ALL_RECORDS;
+  document.getElementById('statTotal').textContent = r.length;
+  document.getElementById('statAddr').textContent  = r.filter(x=>x.prop_address).length;
+  document.getElementById('statHigh').textContent  = r.filter(x=>x.score>=70).length;
+  document.getElementById('statFC').textContent    = r.filter(x=>x.doc_type==='NOFC').length;
+  document.getElementById('statLP').textContent    = r.filter(x=>x.doc_type==='LP').length;
+  document.getElementById('statJUD').textContent   = r.filter(x=>x.cat==='JUD').length;
+  document.getElementById('statLN').textContent    = r.filter(x=>x.cat==='LN').length;
+  const avg = r.length ? Math.round(r.reduce((s,x)=>s+(x.score||0),0)/r.length) : 0;
   document.getElementById('statAvg').textContent   = avg;
 }
 
-// ============================================================
-// FILTERS
-// ============================================================
 function buildTypeFilters() {
   const counts = {};
-  ALL_RECORDS.forEach(r => { counts[r.cat] = (counts[r.cat]||0)+1; });
-  const total = ALL_RECORDS.length;
-
-  const html = `<button class="filter-btn active" data-cat="all" onclick="setTypeFilter(this,'all')">
-    All Types <span class="filter-count">${total}</span></button>` +
-    TYPE_ORDER.filter(c => counts[c]).map(c =>
+  ALL_RECORDS.forEach(r=>{ counts[r.cat]=(counts[r.cat]||0)+1; });
+  document.getElementById('typeFilters').innerHTML =
+    `<button class="filter-btn active" data-cat="all" onclick="setTypeFilter(this,'all')">
+       All Types <span class="filter-count">${ALL_RECORDS.length}</span></button>` +
+    TYPE_ORDER.filter(c=>counts[c]).map(c=>
       `<button class="filter-btn" data-cat="${c}" onclick="setTypeFilter(this,'${c}')">
-        ${CAT_LABELS[c]||c} <span class="filter-count">${counts[c]}</span></button>`
+         ${CAT_LABELS[c]||c} <span class="filter-count">${counts[c]}</span></button>`
     ).join('');
-
-  document.getElementById('typeFilters').innerHTML = html;
 }
 
-function setTypeFilter(btn, val) {
-  document.querySelectorAll('#typeFilters .filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  activeType = val;
-  applyFilters();
+function setTypeFilter(btn,val) {
+  document.querySelectorAll('#typeFilters .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeType=val; applyFilters();
 }
-
-function setScoreFilter(btn, val) {
-  document.querySelectorAll('[data-score]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  activeScore = val;
-  applyFilters();
+function setScoreFilter(btn,val) {
+  document.querySelectorAll('[data-score]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeScore=val; applyFilters();
 }
-
-function setFlagFilter(btn, val) {
-  document.querySelectorAll('[data-flag]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  activeFlag = val;
-  applyFilters();
+function setFlagFilter(btn,val) {
+  document.querySelectorAll('[data-flag]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeFlag=val; applyFilters();
 }
-
-function setAddrFilter(btn, val) {
-  document.querySelectorAll('[data-addr]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  activeAddr = val;
-  applyFilters();
+function setAddrFilter(btn,val) {
+  document.querySelectorAll('[data-addr]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeAddr=val; applyFilters();
 }
 
 function applyFilters() {
-  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const q    = document.getElementById('searchInput').value.toLowerCase().trim();
   const sort = document.getElementById('sortSelect').value;
 
   filtered = ALL_RECORDS.filter(r => {
-    if (activeType !== 'all' && r.cat !== activeType) return false;
-    if (activeScore === 'high' && r.score < 70) return false;
-    if (activeScore === 'mid'  && (r.score < 50 || r.score >= 70)) return false;
-    if (activeScore === 'low'  && r.score >= 50) return false;
-    if (activeFlag !== 'all'  && !(r.flags||[]).includes(activeFlag)) return false;
-    if (activeAddr === 'yes'  && !r.prop_address) return false;
-    if (activeAddr === 'no'   && r.prop_address) return false;
+    if (activeType!=='all' && r.cat!==activeType) return false;
+    if (activeScore==='high' && r.score<70) return false;
+    if (activeScore==='mid'  && (r.score<50||r.score>=70)) return false;
+    if (activeScore==='low'  && r.score>=50) return false;
+    if (activeFlag!=='all'   && !(r.flags||[]).includes(activeFlag)) return false;
+    if (activeAddr==='yes'   && !r.prop_address) return false;
+    if (activeAddr==='no'    && r.prop_address) return false;
     if (q) {
-      const haystack = [r.owner,r.grantee,r.prop_address,r.mail_address,r.doc_num,r.legal,r.cat_label]
+      const hay = [r.owner,r.grantee,r.prop_address,r.mail_address,r.doc_num,r.legal,r.cat_label]
         .join(' ').toLowerCase();
-      if (!haystack.includes(q)) return false;
+      if (!hay.includes(q)) return false;
     }
     return true;
   });
 
-  // Sort
-  filtered.sort((a, b) => {
+  filtered.sort((a,b) => {
     switch(sort) {
       case 'score_desc': return (b.score||0)-(a.score||0);
       case 'score_asc':  return (a.score||0)-(b.score||0);
@@ -944,103 +755,89 @@ function applyFilters() {
     return 0;
   });
 
-  document.getElementById('resultCount').textContent = `${filtered.length} of ${ALL_RECORDS.length}`;
+  document.getElementById('resultCount').textContent = `${filtered.length} of ${ALL_RECORDS.length} records`;
   renderTable();
 }
 
-// ============================================================
-// TABLE RENDER
-// ============================================================
 function renderTable() {
   const container = document.getElementById('tableContainer');
-
   if (!filtered.length) {
     container.innerHTML = `<div class="empty-state">
       <div class="empty-icon">🔍</div>
       <div class="empty-title">No leads match your filters</div>
-      <div style="color:var(--text3);font-size:12px;margin-top:4px">Try adjusting your search or filter criteria</div>
+      <div style="color:var(--text3);font-size:13px;margin-top:6px">Try adjusting your search or sidebar filters</div>
     </div>`;
     return;
   }
 
   const rows = filtered.map(r => {
-    const scoreCls = r.score >= 70 ? 'score-high' : r.score >= 50 ? 'score-mid' : 'score-low';
-    const badgeCls = 'badge-' + (r.cat || 'MISC');
-    const amtCls   = r.amount > 100000 ? 'large' : '';
-    const amtFmt   = r.amount ? '$' + r.amount.toLocaleString('en-US', {minimumFractionDigits:0,maximumFractionDigits:0}) : '—';
+    const sc  = r.score>=70?'score-high':r.score>=50?'score-mid':'score-low';
+    const bc  = 'badge-'+(r.cat||'MISC');
+    const amt = r.amount ? '$'+r.amount.toLocaleString('en-US',{minimumFractionDigits:0}) : '—';
+    const amtCls = r.amount>100000?'large':'';
 
-    const propAddr = r.prop_address
+    const addr = r.prop_address
       ? `<div class="address-block">
            <div class="address-line primary">${esc(r.prop_address)}</div>
            <div class="address-line secondary">${esc([r.prop_city,r.prop_state,r.prop_zip].filter(Boolean).join(', '))}</div>
          </div>`
-      : `<span style="color:var(--text3);font-family:var(--mono);font-size:10px">—</span>`;
+      : `<span style="color:var(--text3)">—</span>`;
 
-    const flags = (r.flags||[]).slice(0,3).map(f => {
-      const hot = ['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien'].includes(f);
+    const flags = (r.flags||[]).slice(0,3).map(f=>{
+      const hot=['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien'].includes(f);
       return `<span class="flag-tag ${hot?'hot':''}">${f}</span>`;
     }).join('');
 
-    return `<tr onclick="openModal(${r._id})" style="cursor:pointer">
-      <td><span class="score-pill ${scoreCls}">${r.score||0}</span></td>
-      <td><span class="doc-badge ${badgeCls}">${esc(r.doc_type||r.cat||'?')}</span></td>
-      <td class="mono" style="color:var(--text2)">${esc(r.filed||'—')}</td>
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.owner||'')}">${esc(r.owner||'—')}</td>
-      <td>${propAddr}</td>
-      <td class="amount-cell ${amtCls}">${amtFmt}</td>
+    return `<tr onclick="openModal(${r._id})">
+      <td><span class="score-pill ${sc}">${r.score||0}</span></td>
+      <td><span class="doc-badge ${bc}">${esc(r.doc_type||r.cat||'?')}</span></td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${esc(r.filed||'—')}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500" title="${esc(r.owner||'')}">${esc(r.owner||'—')}</td>
+      <td>${addr}</td>
+      <td class="amount-cell ${amtCls}">${amt}</td>
       <td><div class="flag-list">${flags}</div></td>
-      <td class="mono" style="color:var(--text3)">${r.clerk_url ? `<a class="doc-link" href="${esc(r.clerk_url)}" target="_blank" onclick="event.stopPropagation()">View ↗</a>` : '—'}</td>
+      <td>${r.clerk_url?`<a class="doc-link" href="${esc(r.clerk_url)}" target="_blank" onclick="event.stopPropagation()">View ↗</a>`:'—'}</td>
     </tr>`;
   }).join('');
 
   container.innerHTML = `<table>
-    <thead>
-      <tr>
-        <th>Score</th>
-        <th>Type</th>
-        <th>Filed</th>
-        <th>Owner / Grantor</th>
-        <th>Property Address</th>
-        <th>Amount</th>
-        <th>Flags</th>
-        <th>Link</th>
-      </tr>
-    </thead>
+    <thead><tr>
+      <th>Score</th><th>Type</th><th>Filed Date</th>
+      <th>Owner / Grantor</th><th>Property Address</th>
+      <th>Amount</th><th>Flags</th><th>Document</th>
+    </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
 
-// ============================================================
-// MODAL
-// ============================================================
 function openModal(id) {
-  const r = ALL_RECORDS.find(x => x._id === id);
+  const r = ALL_RECORDS.find(x=>x._id===id);
   if (!r) return;
 
-  const scoreCls = r.score >= 70 ? 'score-high' : r.score >= 50 ? 'score-mid' : 'score-low';
-  const badgeCls = 'badge-' + (r.cat || 'MISC');
-  const scoreColor = r.score >= 70 ? 'var(--green)' : r.score >= 50 ? 'var(--amber)' : 'var(--text3)';
-
-  document.getElementById('modalTitle').textContent = r.owner || 'Unknown Owner';
-  document.getElementById('modalBadgeWrap').innerHTML =
-    `<span class="doc-badge ${badgeCls}">${esc(r.cat_label||r.doc_type||'')}</span>`;
-
-  const propFull = [r.prop_address, r.prop_city, r.prop_state, r.prop_zip].filter(Boolean).join(', ');
-  const mailFull = [r.mail_address, r.mail_city, r.mail_state, r.mail_zip].filter(Boolean).join(', ');
-  const amtFmt   = r.amount ? '$' + r.amount.toLocaleString('en-US') : '—';
-  const flags    = (r.flags||[]).map(f => {
-    const hot = ['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien'].includes(f);
+  const sc  = r.score>=70?'score-high':r.score>=50?'score-mid':'score-low';
+  const bc  = 'badge-'+(r.cat||'MISC');
+  const scoreColor = r.score>=70?'#059669':r.score>=50?'#b45309':'#6b7280';
+  const propFull = [r.prop_address,r.prop_city,r.prop_state,r.prop_zip].filter(Boolean).join(', ');
+  const mailFull = [r.mail_address,r.mail_city,r.mail_state,r.mail_zip].filter(Boolean).join(', ');
+  const amt = r.amount?'$'+r.amount.toLocaleString('en-US'):'—';
+  const flags = (r.flags||[]).map(f=>{
+    const hot=['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien'].includes(f);
     return `<span class="flag-tag ${hot?'hot':''}">${f}</span>`;
   }).join('');
 
-  const fillPct = Math.min(100, r.score||0);
+  document.getElementById('modalTitle').textContent = r.owner||'Unknown Owner';
+  document.getElementById('modalBadgeWrap').innerHTML =
+    `<span class="doc-badge ${bc}">${esc(r.cat_label||r.doc_type||'')}</span>`;
 
   document.getElementById('modalBody').innerHTML = `
     <div class="modal-field full">
       <div class="modal-label">Seller Score</div>
-      <div class="score-bar-wrap">
-        <div class="modal-value mono" style="color:${scoreColor};min-width:32px">${r.score||0}</div>
-        <div class="score-bar-bg"><div class="score-bar-fill" style="width:${fillPct}%;background:${scoreColor}"></div></div>
+      <div class="score-bar-wrap" style="margin-top:4px">
+        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:${scoreColor};min-width:36px">${r.score||0}</div>
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" style="width:${Math.min(100,r.score||0)}%;background:${scoreColor}"></div>
+        </div>
+        <span class="score-pill ${sc}" style="flex-shrink:0">${r.score||0}</span>
       </div>
     </div>
     <div class="modal-field">
@@ -1053,15 +850,15 @@ function openModal(id) {
     </div>
     <div class="modal-field">
       <div class="modal-label">Grantor / Owner</div>
-      <div class="modal-value">${esc(r.owner||'—')}</div>
+      <div class="modal-value" style="font-weight:600">${esc(r.owner||'—')}</div>
     </div>
     <div class="modal-field">
       <div class="modal-label">Grantee</div>
       <div class="modal-value">${esc(r.grantee||'—')}</div>
     </div>
     <div class="modal-field">
-      <div class="modal-label">Amount / Debt</div>
-      <div class="modal-value mono" style="color:var(--amber)">${amtFmt}</div>
+      <div class="modal-label">Amount / Debt Owed</div>
+      <div class="modal-value" style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--amber)">${amt}</div>
     </div>
     <div class="modal-field">
       <div class="modal-label">Document Type</div>
@@ -1069,7 +866,7 @@ function openModal(id) {
     </div>
     <div class="modal-field">
       <div class="modal-label">Property Address</div>
-      <div class="modal-value">${esc(propFull||'—')}</div>
+      <div class="modal-value" style="font-weight:500">${esc(propFull||'—')}</div>
     </div>
     <div class="modal-field">
       <div class="modal-label">Mailing Address</div>
@@ -1077,60 +874,49 @@ function openModal(id) {
     </div>
     <div class="modal-field full">
       <div class="modal-label">Legal Description</div>
-      <div class="modal-value mono" style="font-size:11px;color:var(--text2)">${esc(r.legal||'—')}</div>
+      <div class="modal-value mono" style="font-size:12px">${esc(r.legal||'—')}</div>
     </div>
     <div class="modal-field full">
       <div class="modal-label">Motivated Seller Flags</div>
-      <div class="flag-list" style="margin-top:2px">${flags||'<span style="color:var(--text3);font-size:11px">None</span>'}</div>
+      <div class="flag-list" style="margin-top:4px">${flags||'<span style="color:var(--text3);font-size:12px">None</span>'}</div>
     </div>
   `;
 
   document.getElementById('modalFooter').innerHTML = `
-    ${r.clerk_url ? `<a href="${esc(r.clerk_url)}" target="_blank"><button class="btn-secondary">🔗 View Document</button></a>` : ''}
-    <button class="btn-secondary" onclick="copySingle(${r._id})">📋 Copy GHL Row</button>
+    ${r.clerk_url?`<a href="${esc(r.clerk_url)}" target="_blank"><button class="btn-secondary">🔗 View Document</button></a>`:''}
+    <button class="btn-secondary" onclick="copySingle(${r._id})">📋 Copy as Tab Row</button>
     <button class="btn-secondary" onclick="closeModal()">Close</button>
   `;
 
   document.getElementById('modalOverlay').classList.add('open');
 }
 
-function closeModal() {
-  document.getElementById('modalOverlay').classList.remove('open');
-}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-// ============================================================
-// EXPORT CSV
-// ============================================================
 function exportCSV() {
-  const cols = [
-    'First Name','Last Name','Mailing Address','Mailing City','Mailing State','Mailing Zip',
+  const cols = ['First Name','Last Name','Mailing Address','Mailing City','Mailing State','Mailing Zip',
     'Property Address','Property City','Property State','Property Zip',
     'Lead Type','Document Type','Date Filed','Document Number','Amount/Debt Owed',
-    'Seller Score','Motivated Seller Flags','Source','Public Records URL'
-  ];
+    'Seller Score','Motivated Seller Flags','Source','Public Records URL'];
 
   const rows = [cols.join(',')];
-  filtered.forEach(r => {
-    const owner = r.owner || '';
+  filtered.forEach(r=>{
+    const owner = r.owner||'';
     const parts = owner.split(' ');
-    const first = parts[0]||'';
-    const last  = parts.slice(1).join(' ')||'';
     rows.push([
-      csvEsc(first), csvEsc(last),
+      csvEsc(parts[0]||''), csvEsc(parts.slice(1).join(' ')||''),
       csvEsc(r.mail_address||''), csvEsc(r.mail_city||''), csvEsc(r.mail_state||'SC'), csvEsc(r.mail_zip||''),
       csvEsc(r.prop_address||''), csvEsc(r.prop_city||''), csvEsc(r.prop_state||'SC'), csvEsc(r.prop_zip||''),
-      csvEsc(r.cat_label||''), csvEsc(r.doc_type||''),
-      csvEsc(r.filed||''), csvEsc(r.doc_num||''),
+      csvEsc(r.cat_label||''), csvEsc(r.doc_type||''), csvEsc(r.filed||''), csvEsc(r.doc_num||''),
       r.amount||'', r.score||0,
       csvEsc((r.flags||[]).join('; ')),
-      csvEsc('Horry County SC Clerk of Court'),
+      csvEsc('Horry County Register of Deeds'),
       csvEsc(r.clerk_url||''),
     ].join(','));
   });
 
-  const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  const blob = new Blob([rows.join('\n')],{type:'text/csv'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `horry_leads_${new Date().toISOString().slice(0,10)}.csv`;
@@ -1138,41 +924,28 @@ function exportCSV() {
 }
 
 function copySingle(id) {
-  const r = ALL_RECORDS.find(x => x._id === id);
+  const r = ALL_RECORDS.find(x=>x._id===id);
   if (!r) return;
-  const owner = r.owner || '';
+  const owner = r.owner||'';
   const parts = owner.split(' ');
-  const first = parts[0]||'';
-  const last  = parts.slice(1).join(' ')||'';
-  const row = [
-    first, last,
-    r.mail_address||'', r.mail_city||'', r.mail_state||'SC', r.mail_zip||'',
-    r.prop_address||'', r.prop_city||'', r.prop_state||'SC', r.prop_zip||'',
-    r.cat_label||'', r.doc_type||'', r.filed||'', r.doc_num||'',
-    r.amount||'', r.score||0, (r.flags||[]).join('; '),
-    'Horry County SC Clerk of Court', r.clerk_url||''
+  const row = [parts[0]||'',parts.slice(1).join(' ')||'',
+    r.mail_address||'',r.mail_city||'',r.mail_state||'SC',r.mail_zip||'',
+    r.prop_address||'',r.prop_city||'',r.prop_state||'SC',r.prop_zip||'',
+    r.cat_label||'',r.doc_type||'',r.filed||'',r.doc_num||'',
+    r.amount||'',r.score||0,(r.flags||[]).join('; '),
+    'Horry County Register of Deeds',r.clerk_url||''
   ].join('\t');
-  navigator.clipboard.writeText(row).then(() => alert('Copied to clipboard!'));
+  navigator.clipboard.writeText(row).then(()=>alert('Copied to clipboard!'));
 }
 
-// ============================================================
-// UTILS
-// ============================================================
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
 function csvEsc(s) {
-  s = String(s||'');
-  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-    return '"' + s.replace(/"/g,'""') + '"';
-  }
-  return s;
+  s=String(s||'');
+  return (s.includes(',')||s.includes('"')||s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s;
 }
 
-// ============================================================
-// INIT
-// ============================================================
 loadData();
 </script>
 </body>
