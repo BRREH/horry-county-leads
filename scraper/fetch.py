@@ -1,11 +1,13 @@
 """
-Horry County SC — Motivated Seller Lead Scraper v7
-Fix: Skip login detection — go straight to search page.
-The portal session cookie handles auth automatically after disclaimer.
+Horry County SC — Motivated Seller Lead Scraper v8
+Key fix: Acclaim renders results via JavaScript grid (not static HTML tables).
+Strategy: Wait for JS grid to load, then extract data from the rendered DOM.
+Also tries the CSV export button which bypasses the JS grid entirely.
 """
 
 import asyncio
 import csv
+import io
 import json
 import logging
 import os
@@ -30,10 +32,9 @@ logging.basicConfig(
 )
 log = logging.getLogger("horry_scraper")
 
-ACCLAIM_BASE    = "https://acclaimweb.horrycounty.org/AcclaimWeb"
-DOCTYPE_URL     = f"{ACCLAIM_BASE}/search/SearchTypeDocType"
-LOGIN_URL       = f"{ACCLAIM_BASE}/Account/LogOn"
-LOOK_BACK_DAYS  = 7
+ACCLAIM_BASE   = "https://acclaimweb.horrycounty.org/AcclaimWeb"
+DOCTYPE_URL    = f"{ACCLAIM_BASE}/search/SearchTypeDocType"
+LOOK_BACK_DAYS = 7
 SCRAPER_TIMEOUT = 18 * 60
 
 DOC_CATEGORIES = {
@@ -121,8 +122,6 @@ class AcclaimScraper:
     def __init__(self):
         self.records    = []
         self.start_time = None
-        self.username   = os.environ.get("HORRY_USERNAME", "")
-        self.password   = os.environ.get("HORRY_PASSWORD", "")
 
     def timed_out(self):
         return (datetime.now().timestamp() - self.start_time) > SCRAPER_TIMEOUT
@@ -144,10 +143,12 @@ class AcclaimScraper:
                     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                     "Chrome/120.0.0.0 Safari/537.36"
                 ),
-                viewport={"width": 1280, "height": 900},
+                viewport={"width": 1280, "height": 1024},
+                # Accept downloads for CSV export attempt
+                accept_downloads=True,
             )
             page = await context.new_page()
-            page.set_default_timeout(15000)
+            page.set_default_timeout(20000)
 
             try:
                 await self._run(page)
@@ -163,152 +164,56 @@ class AcclaimScraper:
         start_date, end_date = date_range_str()
         log.info("Date range: %s to %s", start_date, end_date)
 
-        # Step 1: Load portal home and accept disclaimer
-        log.info("Step 1: Loading portal home...")
+        # Step 1: Load portal and accept disclaimer
+        log.info("Loading portal...")
         await page.goto(ACCLAIM_BASE + "/", wait_until="domcontentloaded", timeout=20000)
         await asyncio.sleep(2)
-        log.info("Home URL: %s", page.url)
         await self._accept_disclaimer(page)
-        log.info("Post-disclaimer URL: %s", page.url)
+        log.info("URL after disclaimer: %s", page.url)
 
-        # Step 2: Check if we need to log in
-        # Navigate to the search page and see what we get
-        log.info("Step 2: Navigating to search page...")
-        await page.goto(DOCTYPE_URL, wait_until="domcontentloaded", timeout=20000)
-        await asyncio.sleep(2)
+        # Step 2: Go to Document Type search page
+        log.info("Loading search page...")
+        await page.goto(DOCTYPE_URL, wait_until="networkidle", timeout=30000)
+        await asyncio.sleep(3)
         log.info("Search page URL: %s", page.url)
 
-        # If redirected to login page, log in
-        if "logon" in page.url.lower() or "login" in page.url.lower() or "account" in page.url.lower():
-            log.info("Redirected to login — logging in...")
-            logged_in = await self._do_login(page)
-            if not logged_in:
-                log.error("Login failed — stopping")
-                return
-            # After login navigate back to search
-            await page.goto(DOCTYPE_URL, wait_until="domcontentloaded", timeout=20000)
-            await asyncio.sleep(2)
-            log.info("Post-login search URL: %s", page.url)
-        else:
-            log.info("Already on search page — no login needed")
-
-        # Step 3: Fill dates and search
-        log.info("Step 3: Filling search form...")
-
-        # Log what inputs exist
-        inputs = await page.evaluate("""
-            () => Array.from(document.querySelectorAll('input,select')).map(el => ({
-                id: el.id, name: el.name, type: el.type
-            })).filter(el => el.id || el.name)
-        """)
-        log.info("Form inputs: %s", inputs)
-
+        # Step 3: Fill dates
         await self._fill_field(page, "RecordDateFrom", start_date)
         await self._fill_field(page, "RecordDateTo",   end_date)
-        await self._select_all(page)
-        await self._submit(page)
-        await asyncio.sleep(3)
-        log.info("Results URL: %s", page.url)
 
-        # Step 4: Parse results
-        log.info("Step 4: Parsing results...")
-        await self._parse_all_pages(page)
+        # Step 4: Select all doc types
+        await self._select_all(page)
+
+        # Step 5: Submit and wait for JS grid to render
+        log.info("Submitting search...")
+        await self._submit_and_wait(page)
+
+        # Step 6: Try to get CSV export first (most reliable)
+        csv_records = await self._try_csv_export(page)
+        if csv_records:
+            log.info("Got %d records from CSV export", len(csv_records))
+            self.records.extend(csv_records)
+            return
+
+        # Step 7: Parse JS-rendered grid
+        log.info("Parsing JS grid...")
+        await self._parse_js_grid(page)
 
     async def _accept_disclaimer(self, page: Page):
-        """Click through disclaimer if present."""
         content = await page.content()
         if "disclaimer" in content.lower() or "accept" in content.lower():
             for sel in ["input[type='submit']", "input[value*='Accept' i]",
-                        "button:has-text('Accept')", "a:has-text('Accept')"]:
+                        "button:has-text('Accept')"]:
                 try:
                     el = page.locator(sel).first
                     if await el.count() > 0:
                         await el.click()
                         await page.wait_for_load_state("domcontentloaded", timeout=10000)
                         await asyncio.sleep(1)
-                        log.info("Disclaimer accepted via %s", sel)
+                        log.info("Disclaimer accepted")
                         return
                 except Exception:
                     pass
-
-    async def _do_login(self, page: Page) -> bool:
-        """Fill login form with credentials."""
-        log.info("Login page URL: %s", page.url)
-
-        # Log inputs on login page
-        inputs = await page.evaluate("""
-            () => Array.from(document.querySelectorAll('input')).map(el => ({
-                id: el.id, name: el.name, type: el.type, placeholder: el.placeholder
-            }))
-        """)
-        log.info("Login inputs: %s", inputs)
-
-        # Fill username — try every possible field name
-        user_filled = False
-        for sel in [
-            "#UserName", "[name='UserName']",
-            "#username", "[name='username']",
-            "#Email",    "[name='Email']",
-            "#email",    "[name='email']",
-            "input[type='email']",
-            "input[type='text']:first-of-type",
-        ]:
-            try:
-                el = page.locator(sel).first
-                if await el.count() > 0:
-                    await el.click(triple_click=True)
-                    await el.fill(self.username)
-                    log.info("✓ Username filled via %s", sel)
-                    user_filled = True
-                    break
-            except Exception:
-                pass
-
-        # Fill password
-        pass_filled = False
-        for sel in [
-            "#Password", "[name='Password']",
-            "#password", "[name='password']",
-            "input[type='password']",
-        ]:
-            try:
-                el = page.locator(sel).first
-                if await el.count() > 0:
-                    await el.click(triple_click=True)
-                    await el.fill(self.password)
-                    log.info("✓ Password filled via %s", sel)
-                    pass_filled = True
-                    break
-            except Exception:
-                pass
-
-        log.info("user_filled=%s pass_filled=%s", user_filled, pass_filled)
-
-        if not user_filled or not pass_filled:
-            log.error("Could not fill login credentials")
-            return False
-
-        # Submit
-        for sel in ["input[type='submit']", "button[type='submit']",
-                    "button:has-text('Log')", "button:has-text('Sign')"]:
-            try:
-                el = page.locator(sel).first
-                if await el.count() > 0:
-                    await el.click()
-                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                    await asyncio.sleep(2)
-                    log.info("✓ Login submitted. New URL: %s", page.url)
-                    break
-            except Exception:
-                pass
-
-        # Check success
-        if "logon" in page.url.lower() or "login" in page.url.lower():
-            log.error("Still on login page after submit — credentials may be wrong")
-            return False
-
-        log.info("✓ Login successful!")
-        return True
 
     async def _fill_field(self, page: Page, field_id: str, value: str):
         for sel in [f"#{field_id}", f"[name='{field_id}']"]:
@@ -319,8 +224,8 @@ class AcclaimScraper:
                     await el.fill(value)
                     log.info("✓ Filled %s = %s", field_id, value)
                     return
-            except Exception as e:
-                log.debug("Fill %s failed via %s: %s", field_id, sel, e)
+            except Exception:
+                pass
         log.warning("✗ Could not fill %s", field_id)
 
     async def _select_all(self, page: Page):
@@ -334,10 +239,11 @@ class AcclaimScraper:
                     return
             except Exception:
                 pass
+        # Fallback: check individual boxes
         try:
             cbs = await page.query_selector_all("[name='DocTypeInfoCheckBox']")
-            log.info("Checking %d individual checkboxes", len(cbs))
-            for cb in cbs[:50]:
+            log.info("Checking %d checkboxes", len(cbs))
+            for cb in cbs[:100]:
                 try:
                     if not await cb.is_checked():
                         await cb.check()
@@ -346,130 +252,218 @@ class AcclaimScraper:
         except Exception as e:
             log.warning("Checkbox error: %s", e)
 
-    async def _submit(self, page: Page):
+    async def _submit_and_wait(self, page: Page):
+        """Submit form and wait for JS grid to fully render."""
         for sel in ["#btnSearch", "input[type='submit']", "button[type='submit']"]:
             try:
                 el = page.locator(sel).first
                 if await el.count() > 0:
                     await el.click()
-                    await page.wait_for_load_state("domcontentloaded", timeout=20000)
-                    log.info("✓ Search submitted")
+                    # Wait for network to settle after JS loads results
+                    await page.wait_for_load_state("networkidle", timeout=30000)
+                    await asyncio.sleep(5)  # Extra wait for JS grid rendering
+                    log.info("✓ Search submitted. URL: %s", page.url)
                     return
             except Exception:
                 pass
         log.error("Could not submit search")
 
-    async def _parse_all_pages(self, page: Page):
-        page_num          = 1
-        consecutive_empty = 0
+    async def _try_csv_export(self, page: Page) -> list:
+        """
+        Acclaim has a CSV export button on the results page.
+        This is the most reliable way to get all data.
+        """
+        try:
+            # Look for export/CSV button
+            for sel in [
+                "button:has-text('Export')",
+                "button:has-text('CSV')",
+                "a:has-text('Export')",
+                "a:has-text('CSV')",
+                "input[value*='Export' i]",
+                "input[value*='CSV' i]",
+                ".export-btn",
+                "#btnExport",
+                "#btnCSV",
+            ]:
+                try:
+                    el = page.locator(sel).first
+                    if await el.count() > 0:
+                        log.info("Found export button: %s", sel)
+                        async with page.expect_download(timeout=15000) as dl_info:
+                            await el.click()
+                        download = await dl_info.value
+                        content  = await download.path()
+                        if content:
+                            with open(content, "r", encoding="utf-8", errors="ignore") as f:
+                                raw = f.read()
+                            records = self._parse_csv_content(raw)
+                            log.info("CSV export: %d records", len(records))
+                            return records
+                except Exception as e:
+                    log.debug("Export attempt %s failed: %s", sel, e)
+        except Exception as e:
+            log.debug("CSV export overall failed: %s", e)
+        return []
 
-        while True:
-            if self.timed_out():
-                log.warning("Time limit — stopping at page %d (%d records)",
-                            page_num, len(self.records))
-                break
+    def _parse_csv_content(self, raw: str) -> list:
+        """Parse CSV content from Acclaim export."""
+        records = []
+        try:
+            reader = csv.DictReader(io.StringIO(raw))
+            for row in reader:
+                # Map CSV columns to our format
+                doc_type = (row.get("Doc Type","") or row.get("Document Type","") or "").strip().upper()
+                if doc_type not in DOC_CATEGORIES:
+                    continue
+                cat, cat_label = DOC_CATEGORIES[doc_type]
+                records.append({
+                    "doc_num":     (row.get("Instrument","") or row.get("Doc Number","") or "").strip(),
+                    "doc_type":    doc_type,
+                    "filed":       normalize_date(row.get("Record Date","") or row.get("Date","")),
+                    "cat":         cat,
+                    "cat_label":   cat_label,
+                    "owner":       (row.get("Grantor","") or row.get("Owner","")).strip(),
+                    "grantee":     (row.get("Grantee","") or "").strip(),
+                    "amount":      parse_amount(row.get("Consideration","") or row.get("Amount","")),
+                    "legal":       (row.get("Legal","") or row.get("Description","")).strip(),
+                    "clerk_url":   DOCTYPE_URL,
+                    "prop_address":"","prop_city":"","prop_state":"SC","prop_zip":"",
+                    "mail_address":"","mail_city":"","mail_state":"SC","mail_zip":"",
+                })
+        except Exception as e:
+            log.error("CSV parse error: %s", e)
+        return records
 
-            await asyncio.sleep(1)
-            html  = await page.content()
-            soup  = BeautifulSoup(html, "lxml")
-            found = self._parse_table(soup)
-            log.info("Page %d: %d rows (total: %d)", page_num, found, len(self.records))
+    async def _parse_js_grid(self, page: Page):
+        """
+        Acclaim uses a JavaScript grid. Extract data directly from the DOM
+        using JavaScript evaluation — more reliable than BeautifulSoup for JS-rendered content.
+        """
+        # Log the full page structure for debugging
+        page_text = await page.evaluate("() => document.body.innerText")
+        log.info("Page text preview (first 500 chars): %s", page_text[:500])
 
-            if found == 0:
-                consecutive_empty += 1
-                if consecutive_empty >= 2:
-                    break
-            else:
-                consecutive_empty = 0
+        # Try to extract grid rows via JavaScript
+        rows = await page.evaluate("""
+            () => {
+                const results = [];
 
-            next_el = await self._find_next(page)
-            if not next_el:
-                break
+                // Try standard table rows
+                const tableRows = document.querySelectorAll('table tbody tr, table tr');
+                tableRows.forEach(row => {
+                    const cells = Array.from(row.querySelectorAll('td')).map(td => td.innerText.trim());
+                    if (cells.length >= 3) results.push({type: 'table', cells: cells});
+                });
 
-            try:
-                await next_el.click()
-                await page.wait_for_load_state("domcontentloaded", timeout=10000)
-                page_num += 1
-            except Exception as e:
-                log.warning("Pagination error: %s", e)
-                break
+                // Try grid rows (common in Acclaim)
+                const gridRows = document.querySelectorAll(
+                    '.k-grid-content tr, .grid-row, [role="row"], .search-result-row, .result-row'
+                );
+                gridRows.forEach(row => {
+                    const cells = Array.from(row.querySelectorAll('td, [role="gridcell"], .cell'))
+                        .map(td => td.innerText.trim());
+                    if (cells.length >= 3) results.push({type: 'grid', cells: cells});
+                });
 
-    async def _find_next(self, page: Page):
-        for sel in ["a:has-text('Next')", "a:has-text('>')",
-                    "li.next a", ".pagination a:last-child"]:
-            try:
-                el = page.locator(sel).first
-                if await el.count() > 0:
-                    cls      = await el.get_attribute("class") or ""
-                    disabled = await el.get_attribute("disabled")
-                    if "disabled" not in cls.lower() and not disabled:
-                        return el
-            except Exception:
-                pass
-        return None
+                // Try list items
+                const listItems = document.querySelectorAll('.search-results li, .results-list li');
+                listItems.forEach(item => {
+                    results.push({type: 'list', cells: [item.innerText.trim()]});
+                });
 
-    def _parse_table(self, soup: BeautifulSoup) -> int:
-        tables = soup.find_all("table")
-        if not tables:
-            return 0
-        best = max(tables, key=lambda t: len(t.find_all("tr")))
-        rows = best.find_all("tr")
-        if len(rows) < 2:
-            return 0
+                return results;
+            }
+        """)
 
-        headers = [th.get_text(strip=True).lower()
-                   for th in rows[0].find_all(["th", "td"])]
-        log.info("Table headers: %s", headers)
+        log.info("JS extraction found %d row candidates", len(rows))
 
-        count = 0
-        for row in rows[1:]:
-            cells = row.find_all("td")
+        # Also get all links on the page (each result usually has a link)
+        links = await page.evaluate("""
+            () => Array.from(document.querySelectorAll('a[href]'))
+                .map(a => ({text: a.innerText.trim(), href: a.href}))
+                .filter(a => a.text.length > 0)
+        """)
+        log.info("Found %d links on results page", len(links))
+        for link in links[:20]:
+            log.info("  Link: %s → %s", link['text'][:50], link['href'][:80])
+
+        # Parse whatever rows we found
+        for row_data in rows:
+            cells = row_data.get("cells", [])
             if len(cells) < 2:
                 continue
             try:
-                rec = self._parse_row(cells, headers, row)
+                rec = self._parse_row_cells(cells)
                 if rec:
                     self.records.append(rec)
-                    count += 1
             except Exception as e:
-                log.debug("Row error: %s", e)
-        return count
+                log.debug("Row parse error: %s", e)
 
-    def _parse_row(self, cells, headers, row) -> Optional[dict]:
-        def cell(i):
-            return cells[i].get_text(strip=True) if i < len(cells) else ""
+        log.info("Parsed %d records from JS grid", len(self.records))
 
-        def find(*names):
-            for name in names:
-                for i, h in enumerate(headers):
-                    if name in h:
-                        return cell(i)
-            return ""
+        # If still 0 — try paginating through results using URL patterns
+        if len(self.records) == 0:
+            await self._try_url_pagination(page)
 
-        doc_num  = find("instrument","instr","doc","number","book") or cell(0)
-        doc_type = (find("type","doctype") or cell(1)).strip().upper()
-        filed    = find("record date","date","filed","recorded") or cell(2)
-        grantor  = find("grantor","owner","seller") or cell(3)
-        grantee  = find("grantee","buyer") or (cell(4) if len(cells)>4 else "")
-        legal    = find("legal","description") or (cell(5) if len(cells)>5 else "")
-        amount   = find("consideration","amount") or (cell(6) if len(cells)>6 else "")
+    async def _try_url_pagination(self, page: Page):
+        """
+        Try to access results via direct URL patterns that Acclaim uses.
+        Some Acclaim installs use /search/SearchResults with query params.
+        """
+        start_date, end_date = date_range_str()
+
+        # Try common Acclaim result URL patterns
+        result_urls = [
+            f"{ACCLAIM_BASE}/search/SearchResults",
+            f"{ACCLAIM_BASE}/Search/GetSearchResults",
+            f"{ACCLAIM_BASE}/api/search/results",
+        ]
+
+        for url in result_urls:
+            try:
+                resp = await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+                if resp and resp.status == 200:
+                    content = await page.content()
+                    log.info("Result URL %s returned %d chars", url, len(content))
+                    soup = BeautifulSoup(content, "lxml")
+                    # Try parsing as JSON
+                    try:
+                        data = json.loads(content)
+                        log.info("Got JSON response with keys: %s", list(data.keys())[:5])
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    def _parse_row_cells(self, cells: list) -> Optional[dict]:
+        """Parse a row of cells into a record."""
+        if len(cells) < 3:
+            return None
+
+        # Try to identify which cell is which based on content patterns
+        doc_num  = cells[0] if cells else ""
+        doc_type = cells[1].strip().upper() if len(cells) > 1 else ""
+        filed    = ""
+        grantor  = ""
+        grantee  = ""
+        amount   = ""
+        legal    = ""
+
+        # Find date cell
+        for i, c in enumerate(cells):
+            if re.match(r'\d{1,2}/\d{1,2}/\d{4}', c):
+                filed = c
+                grantor = cells[i+1] if i+1 < len(cells) else ""
+                grantee = cells[i+2] if i+2 < len(cells) else ""
+                legal   = cells[i+3] if i+3 < len(cells) else ""
+                amount  = cells[i+4] if i+4 < len(cells) else ""
+                break
 
         if doc_type not in DOC_CATEGORIES:
             return None
 
         cat, cat_label = DOC_CATEGORIES[doc_type]
-
-        link = row.find("a", href=True)
-        if link:
-            href = link["href"]
-            clerk_url = (href if href.startswith("http")
-                         else ACCLAIM_BASE + href if href.startswith("/")
-                         else ACCLAIM_BASE + "/" + href)
-        else:
-            clerk_url = DOCTYPE_URL
-
-        if not doc_num and not grantor:
-            return None
 
         return {
             "doc_num":     doc_num.strip(),
@@ -481,7 +475,7 @@ class AcclaimScraper:
             "grantee":     grantee.strip(),
             "amount":      parse_amount(amount),
             "legal":       legal.strip(),
-            "clerk_url":   clerk_url,
+            "clerk_url":   DOCTYPE_URL,
             "prop_address":"","prop_city":"","prop_state":"SC","prop_zip":"",
             "mail_address":"","mail_city":"","mail_state":"SC","mail_zip":"",
         }
@@ -545,7 +539,7 @@ def export_ghl_csv(records, path):
 
 async def main():
     log.info("="*60)
-    log.info("Horry County Scraper v7")
+    log.info("Horry County Scraper v8 — JS Grid + CSV Export")
     log.info("="*60)
 
     scraper = AcclaimScraper()
