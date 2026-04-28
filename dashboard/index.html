@@ -260,9 +260,6 @@ header {
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--bg2);
-  position: sticky;
-  top: 64px;
-  z-index: 50;
 }
 
 .search-wrap { position: relative; flex: 1; }
@@ -322,9 +319,6 @@ table {
 thead tr {
   background: var(--bg3);
   border-bottom: 2px solid var(--border2);
-  position: sticky;
-  top: 113px;
-  z-index: 40;
 }
 
 th {
@@ -801,7 +795,7 @@ function renderTable() {
       <td>${addr}</td>
       <td class="amount-cell ${amtCls}">${amt}</td>
       <td><div class="flag-list">${flags}</div></td>
-      <td>${r.clerk_url?`<a class="doc-link" href="${esc(r.clerk_url)}" target="_blank" onclick="event.stopPropagation()">View ↗</a>`:'—'}</td>
+      <td>${r.owner?`<a class="doc-link" href="https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=${encodeURIComponent(r.owner)}" target="_blank" onclick="event.stopPropagation()">View ↗</a>`:'—'}</td>
     </tr>`;
   }).join('');
 
@@ -888,8 +882,7 @@ function openModal(id) {
   `;
 
   document.getElementById('modalFooter').innerHTML = `
-    ${r.doc_num ? `<a href="https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=${encodeURIComponent(r.owner||'')}&searchType=Direct" target="_blank"><button class="btn-secondary">🔗 Search Owner in Acclaim</button></a>` : ''}
-    ${r.doc_num ? `<a href="https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeBookPage?bookNumber=${encodeURIComponent((r.doc_num||'').split('/')[0]||'')}&pageNumber=${encodeURIComponent((r.doc_num||'').split('/')[1]||'')}&bookType=All&searchType=BookPage" target="_blank"><button class="btn-secondary">📄 View Document</button></a>` : ''}
+    <a href="https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=${encodeURIComponent(r.owner||'')}" target="_blank"><button class="btn-secondary">🔍 Search Owner Records</button></a>
     <button class="btn-secondary" onclick="copySingle(${r._id})">📋 Copy as Tab Row</button>
     <button class="btn-secondary" onclick="closeModal()">Close</button>
   `;
