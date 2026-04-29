@@ -456,6 +456,29 @@ async def run_acclaim(page: Page) -> list:
 # Main
 # ══════════════════════════════════════════════════════════════════════════════
 
+def extract_address_from_legal(legal: str) -> str:
+    """
+    Try to extract a street address from Acclaim legal description / comments.
+    Many records include the property address in the comments field.
+    Examples:
+      "1234 OCEAN BLVD UNIT 5 MYRTLE BEACH SC"
+      "LOT 11 BL A - 456 MAIN ST"
+    """
+    if not legal:
+        return ""
+    # Look for patterns like: number + street name + street type
+    patterns = [
+        r'\b(\d+\s+[A-Z][A-Z\s]+(?:ST|AVE|RD|DR|LN|WAY|BLVD|CT|CIR|HWY|LOOP|TRL|PL|PKY|PKWY)[A-Z\s]*\d{5}?)\b',
+        r'\b(\d+\s+[A-Z][A-Z\s]{3,30}(?:STREET|AVENUE|ROAD|DRIVE|LANE|WAY|BOULEVARD|COURT|CIRCLE|HIGHWAY))',
+    ]
+    text = legal.upper()
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
 async def main():
     log.info("="*60)
     log.info("Horry County Lead Scraper — FINAL")
@@ -496,10 +519,31 @@ async def main():
     # ── Step 2: GIS Address Lookup ────────────────────────────────────────
     log.info("STEP 2: GIS Address Lookup")
     gis = GISLookup()
-    unique_owners = list(dict.fromkeys(
-        r["owner"] for r in all_records if r.get("owner","").strip()
-    ))
-    log.info("Looking up %d unique owners via GIS API...", len(unique_owners))
+
+    # Build list of names to look up:
+    # - For HOA/lien records: use GRANTEE (distressed owner)
+    # - For all others: use GRANTOR (owner)
+    names_to_lookup = set()
+    for r in all_records:
+        owner    = r.get("owner","").strip()
+        grantee  = r.get("grantee","").strip()
+        cat_label= r.get("cat_label","")
+        cat      = r.get("cat","")
+
+        if owner:
+            names_to_lookup.add(owner)
+        # Also look up grantee for lien records AND probate
+        if grantee and (
+            "HOA" in cat_label.upper() or
+            "CONDO" in cat_label.upper() or
+            "MECHANIC" in cat_label.upper() or
+            cat == "LN" or
+            cat == "PRO"  # Probate — look up the heir
+        ):
+            names_to_lookup.add(grantee)
+
+    unique_owners = list(names_to_lookup)
+    log.info("Looking up %d unique names via GIS API...", len(unique_owners))
 
     addr_cache = {}
     enriched   = 0
@@ -510,19 +554,57 @@ async def main():
             enriched += 1
         time.sleep(0.1)  # be polite to the API
 
-    # Apply addresses
+    # Apply addresses — smart contact selection by record type
     for r in all_records:
-        owner = r.get("owner","")
-        if owner in addr_cache and addr_cache[owner]:
-            data = addr_cache[owner]
-            r["prop_address"] = data.get("prop_address","")
-            r["prop_city"]    = data.get("prop_city","")
-            r["prop_state"]   = data.get("prop_state","SC")
-            r["prop_zip"]     = data.get("prop_zip","")
-            r["mail_address"] = data.get("mail_address","")
-            r["mail_city"]    = data.get("mail_city","")
-            r["mail_state"]   = data.get("mail_state","SC")
-            r["mail_zip"]     = data.get("mail_zip","")
+        owner     = r.get("owner","").strip()
+        grantee   = r.get("grantee","").strip()
+        cat       = r.get("cat","")
+        cat_label = r.get("cat_label","").upper()
+
+        # Determine who the CONTACT is based on record type
+        # Grantee = distressed party for these types:
+        use_grantee = (
+            "HOA" in cat_label or
+            "CONDO" in cat_label or
+            "MECHANIC" in cat_label or
+            "CHILD SUPPORT" in cat_label or
+            cat == "PRO"  # Probate — heir is the grantee
+        )
+
+        if use_grantee and grantee:
+            contact_name = grantee
+            log.debug("Using GRANTEE for %s: %s", cat_label[:20], grantee[:25])
+        else:
+            contact_name = owner
+            log.debug("Using GRANTOR for %s: %s", cat_label[:20], owner[:25])
+
+        # Look up address for the contact
+        addr_data = addr_cache.get(contact_name)
+        if not addr_data and contact_name != owner:
+            # Fallback to owner if grantee not found
+            addr_data = addr_cache.get(owner)
+
+        if addr_data:
+            r["prop_address"] = addr_data.get("prop_address","")
+            r["prop_city"]    = addr_data.get("prop_city","")
+            r["prop_state"]   = addr_data.get("prop_state","SC")
+            r["prop_zip"]     = addr_data.get("prop_zip","")
+            r["mail_address"] = addr_data.get("mail_address","")
+            r["mail_city"]    = addr_data.get("mail_city","")
+            r["mail_state"]   = addr_data.get("mail_state","SC")
+            r["mail_zip"]     = addr_data.get("mail_zip","")
+
+        # Update owner display to show the contact person
+        if use_grantee and grantee:
+            r["owner"]   = grantee   # Show heir/homeowner as primary contact
+            r["grantee"] = owner     # Move original grantor to grantee field
+
+        # Last resort — extract address from legal description
+        if not r.get("prop_address","").strip():
+            legal = r.get("legal","")
+            addr  = extract_address_from_legal(legal)
+            if addr:
+                r["prop_address"] = addr
 
     log.info("Addresses enriched: %d / %d owners", enriched, len(unique_owners))
 
