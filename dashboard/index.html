@@ -235,6 +235,7 @@ table td {
 .t-PRO    { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }
 .t-NOC    { background: #d1fae5; color: #064e3b; border-color: #6ee7b7; }
 .t-RELLP  { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+.t-CV     { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
 .t-MISC   { background: #f9fafb; color: #6b7280; border-color: #e5e7eb; }
 
 /* ── FLAG CHIPS ── */
@@ -375,6 +376,7 @@ a.view-link:hover { text-decoration: underline; }
   <div class="stat"><div class="stat-label">Lis Pendens</div><div class="stat-value red" id="sLP">—</div></div>
   <div class="stat"><div class="stat-label">Judgments</div><div class="stat-value black" id="sJUD">—</div></div>
   <div class="stat"><div class="stat-label">Liens</div><div class="stat-value black" id="sLN">—</div></div>
+  <div class="stat"><div class="stat-label">Code Violations</div><div class="stat-value amber" id="sCV">—</div></div>
   <div class="stat"><div class="stat-label">Avg Score</div><div class="stat-value blue" id="sAvg">—</div></div>
 </div>
 
@@ -409,6 +411,7 @@ a.view-link:hover { text-decoration: underline; }
       <button class="filter-btn" data-flag="Probate / estate" onclick="setFlag(this,'Probate / estate')"><span class="filter-label">Probate / Estate</span></button>
       <button class="filter-btn" data-flag="LLC / corp owner" onclick="setFlag(this,'LLC / corp owner')"><span class="filter-label">LLC / Corp Owner</span></button>
       <button class="filter-btn" data-flag="New this week" onclick="setFlag(this,'New this week')"><span class="filter-label">New This Week</span></button>
+      <button class="filter-btn" data-flag="Code violation" onclick="setFlag(this,'Code violation')"><span class="filter-label">Code Violation</span></button>
     </div>
 
   </aside>
@@ -459,9 +462,10 @@ let activeType = 'all', activeScore = 'all', activeFlag = 'all';
 
 const CAT_LABELS = {
   LP:'Lis Pendens', NOFC:'Notice of Foreclosure', TAXDEED:'Tax Deed',
-  JUD:'Judgment', LN:'Lien', PRO:'Probate', NOC:'Notice of Comm.', RELLP:'Release LP'
+  JUD:'Judgment', LN:'Lien', PRO:'Probate', NOC:'Notice of Comm.',
+  RELLP:'Release LP', CV:'Code Violation'
 };
-const TYPE_ORDER = ['LP','NOFC','TAXDEED','JUD','LN','PRO','NOC','RELLP'];
+const TYPE_ORDER = ['LP','NOFC','TAXDEED','JUD','LN','PRO','NOC','RELLP','CV'];
 
 async function loadData() {
   try {
@@ -490,6 +494,7 @@ function updateStats() {
   document.getElementById('sLP').textContent    = ALL.filter(r=>r.cat==='LP').length;
   document.getElementById('sJUD').textContent   = ALL.filter(r=>r.cat==='JUD').length;
   document.getElementById('sLN').textContent    = ALL.filter(r=>r.cat==='LN').length;
+  document.getElementById('sCV').textContent    = ALL.filter(r=>r.cat==='CV').length;
   const avg = ALL.length ? Math.round(ALL.reduce((s,r)=>s+(r.score||0),0)/ALL.length) : 0;
   document.getElementById('sAvg').textContent   = avg;
 }
