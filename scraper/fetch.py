@@ -333,10 +333,11 @@ async def scrape_code_violations(page: Page) -> list:
     start_date, end_date = date_range_str()
 
     try:
-        log.info("Loading EnerGov code enforcement portal...")
+        log.info("Loading EnerGov portal...")
+        # Use the base selfservice URL — hash routes don't work with goto
         await page.goto(
-            f"{ENERGOV_BASE}#/search/code-enforcement",
-            wait_until="networkidle", timeout=20000
+            "https://egweb.horrycounty.org/EnerGov_prod/selfservice",
+            wait_until="domcontentloaded", timeout=20000
         )
         await asyncio.sleep(3)
 
@@ -598,32 +599,36 @@ async def run_acclaim_scraper(page: Page) -> list:
             pass
     await asyncio.sleep(5)
 
-    # Click Export to CSV
-    for sel in [
-        "input[value='Export to CSV']",
-        "input[value*='Export']",
-        "button:has-text('Export to CSV')",
-        "button:has-text('Export')",
-        "a:has-text('Export to CSV')",
-        "a:has-text('Export')",
-    ]:
-        try:
-            el = page.locator(sel).first
-            if await el.count() > 0:
-                log.info("Clicking export: %s", sel)
-                async with page.expect_download(timeout=30000) as dl_info:
-                    await el.click()
-                download = await dl_info.value
-                path = await download.path()
-                if path:
-                    with open(path, "r", encoding="utf-8-sig", errors="ignore") as f:
-                        content = f.read()
-                    log.info("CSV downloaded: %d chars", len(content))
-                    return parse_acclaim_csv(content)
-        except Exception as e:
-            log.debug("Export %s: %s", sel, e)
+    # Wait up to 30s for Export to CSV button to appear after results load
+    log.info("Waiting for Export to CSV button...")
+    for wait_attempt in range(15):
+        for sel in [
+            "input[value='Export to CSV']",
+            "input[value*='Export']",
+            "button:has-text('Export to CSV')",
+            "button:has-text('Export')",
+            "a:has-text('Export to CSV')",
+            "a:has-text('Export')",
+        ]:
+            try:
+                el = page.locator(sel).first
+                if await el.count() > 0:
+                    log.info("✓ Found export button: %s (attempt %d)", sel, wait_attempt+1)
+                    async with page.expect_download(timeout=30000) as dl_info:
+                        await el.click()
+                    download = await dl_info.value
+                    path = await download.path()
+                    if path:
+                        with open(path, "r", encoding="utf-8-sig", errors="ignore") as f:
+                            content = f.read()
+                        log.info("✓ CSV downloaded: %d chars", len(content))
+                        return parse_acclaim_csv(content)
+            except Exception as e:
+                log.debug("Export %s: %s", sel, e)
+        # Not found yet — wait and retry
+        await asyncio.sleep(2)
 
-    log.warning("Could not export CSV from Acclaim")
+    log.warning("Could not export CSV from Acclaim after waiting")
     return []
 
 
