@@ -1,9 +1,9 @@
 """
-Horry County SC — Complete Lead Scraper v12
-Sources:
-  1. Acclaim Register of Deeds — liens, foreclosures, probate etc.
-  2. Horry County QPay — property + mailing address via Playwright
-  3. Horry County EnerGov — code violations (logged for structure)
+Horry County SC — Complete Lead Scraper — FINAL
+Address source: Horry County GIS ArcGIS REST API (free, no login, instant)
+  Layer 24 (Parcels): OwnerName, OwnerStreet, OwnerCity, OwnerState, OwnerZip, TMS
+  Layer 22 (Addresses): ADDRESS, CITY, STATE, ZIPCODE (site/property address by TMS)
+API: https://www.horrycounty.org/parcelapp/rest/services/HorryCountyGISApp/MapServer
 """
 
 import asyncio
@@ -13,6 +13,7 @@ import json
 import logging
 import re
 import sys
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -21,7 +22,7 @@ import requests
 from bs4 import BeautifulSoup
 
 try:
-    from playwright.async_api import async_playwright, Page, BrowserContext
+    from playwright.async_api import async_playwright, Page
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
@@ -35,7 +36,9 @@ log = logging.getLogger("horry_scraper")
 
 ACCLAIM_BASE = "https://acclaimweb.horrycounty.org/AcclaimWeb"
 DOCTYPE_URL  = f"{ACCLAIM_BASE}/search/SearchTypeDocType"
-QPAY_URL     = "https://horrycountytreasurer.qpaybill.com/Taxes/TaxesDefaultType4.aspx"
+GIS_BASE     = "https://www.horrycounty.org/parcelapp/rest/services/HorryCountyGISApp/MapServer"
+PARCELS_URL  = f"{GIS_BASE}/24/query"   # Owner name → mailing address + TMS
+ADDRESS_URL  = f"{GIS_BASE}/22/query"   # TMS → site/property address
 LOOK_BACK_DAYS = 7
 
 DOC_TYPE_KEYWORDS = [
@@ -59,6 +62,7 @@ DOC_TYPE_KEYWORDS = [
     ("LETTERS TEST",           "PRO",     "Probate Document"),
     ("LETTERS OF ADMIN",       "PRO",     "Probate Document"),
     ("NOTICE OF COMMENCEMENT", "NOC",     "Notice of Commencement"),
+    ("CODE VIOLATION",         "CV",      "Code Violation"),
 ]
 
 
@@ -104,15 +108,15 @@ def compute_flags(record: dict) -> list:
     owner     = record.get("owner", "")
     filed     = record.get("filed", "")
 
-    if cat == "LP":                             flags.append("Lis pendens")
-    if cat == "NOFC":                           flags.append("Pre-foreclosure")
-    if cat == "JUD":                            flags.append("Judgment lien")
-    if "TAX" in cat_label.upper():              flags.append("Tax lien")
-    if "MECHANIC" in cat_label.upper():         flags.append("Mechanic lien")
-    if cat == "PRO":                            flags.append("Probate / estate")
+    if cat == "LP":                                      flags.append("Lis pendens")
+    if cat == "NOFC":                                    flags.append("Pre-foreclosure")
+    if cat == "JUD":                                     flags.append("Judgment lien")
+    if "TAX" in cat_label.upper():                       flags.append("Tax lien")
+    if "MECHANIC" in cat_label.upper():                  flags.append("Mechanic lien")
+    if cat == "PRO":                                     flags.append("Probate / estate")
     if "HOA" in cat_label.upper() or "CONDO" in cat_label.upper():
         flags.append("HOA lien")
-    if cat == "CV":                             flags.append("Code violation")
+    if cat == "CV":                                      flags.append("Code violation")
     if owner and re.search(r"\b(LLC|INC|CORP|LTD|TRUST|HOLDINGS)\b", owner.upper()):
         flags.append("LLC / corp owner")
     try:
@@ -131,170 +135,130 @@ def compute_score(record: dict, flags: list) -> int:
     if amount:
         if amount > 100_000: score += 15
         elif amount > 50_000: score += 10
-    if "New this week" in flags:  score += 5
+    if "New this week"  in flags: score += 5
     if "Code violation" in flags: score += 15
     if record.get("prop_address", "").strip(): score += 5
     return min(score, 100)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# QPay Address Lookup — Playwright based
+# GIS Address Lookup — FREE REST API, no login needed
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def lookup_address_qpay(page: Page, owner_name: str) -> Optional[dict]:
+class GISLookup:
     """
-    Look up property address on QPay by owner name.
-    QPay is JavaScript-rendered so we use Playwright.
+    Queries Horry County GIS ArcGIS REST API.
+    Layer 24: Owner name → mailing address + TMS parcel ID
+    Layer 22: TMS → site/property address
+    Completely free, no login, instant JSON responses.
     """
-    try:
-        # Navigate to QPay search
-        await page.goto(QPAY_URL, wait_until="networkidle", timeout=20000)
-        await asyncio.sleep(2)
 
-        # Set search type to Real Estate
-        await page.evaluate("""
-            () => {
-                // Click Real Estate radio button
-                const radios = document.querySelectorAll('input[type=radio]');
-                for (let r of radios) {
-                    if (r.value && (r.value.includes('Real') || r.value === '4' || r.value === 'RE')) {
-                        r.click();
-                        break;
-                    }
-                }
-                // Set payment status to All
-                const status = document.querySelectorAll('input[type=radio]');
-                for (let r of status) {
-                    if (r.value === 'All' || r.value === 'ALL') {
-                        r.click();
-                    }
-                }
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (compatible; HorryLeadScraper/1.0)"
+        })
+        self._cache = {}
+
+    def lookup(self, owner_name: str) -> Optional[dict]:
+        """Return address data for owner name or None."""
+        if not owner_name or not owner_name.strip():
+            return None
+        key = owner_name.strip().upper()
+        if key in self._cache:
+            return self._cache[key]
+
+        result = self._query_parcels(owner_name.strip())
+        self._cache[key] = result
+        return result
+
+    def _query_parcels(self, owner_name: str) -> Optional[dict]:
+        """Query Layer 24 by owner name."""
+        # Escape single quotes in owner name
+        safe_name = owner_name.replace("'", "''")
+        # Use LIKE with wildcards for partial matching
+        where = f"OwnerName LIKE '%{safe_name}%'"
+
+        try:
+            resp = self.session.get(PARCELS_URL, params={
+                "where":          where,
+                "outFields":      "OwnerName,OwnerStreet,OwnerCity,OwnerState,OwnerZip,TMS",
+                "returnGeometry": "false",
+                "f":              "json",
+            }, timeout=10)
+
+            if resp.status_code != 200:
+                log.debug("GIS parcel query failed: %d", resp.status_code)
+                return None
+
+            data     = resp.json()
+            features = data.get("features", [])
+
+            if not features:
+                log.debug("No parcel found for: %s", owner_name[:30])
+                return None
+
+            # Take first match
+            attrs = features[0]["attributes"]
+            tms   = attrs.get("TMS", "")
+
+            result = {
+                "mail_address": (attrs.get("OwnerStreet","") or "").strip(),
+                "mail_city":    (attrs.get("OwnerCity","") or "").strip(),
+                "mail_state":   (attrs.get("OwnerState","") or "SC").strip(),
+                "mail_zip":     (attrs.get("OwnerZip","") or "").strip(),
+                "tms":          tms,
+                # Will fill prop_address from Layer 22
+                "prop_address": "",
+                "prop_city":    "",
+                "prop_state":   "SC",
+                "prop_zip":     "",
             }
-        """)
 
-        # Set search by Owner Name
-        await page.evaluate("""
-            () => {
-                const selects = document.querySelectorAll('select');
-                for (let sel of selects) {
-                    for (let opt of sel.options) {
-                        if (opt.text.includes('Owner') || opt.value.includes('OWNER') || opt.value.includes('Owner')) {
-                            sel.value = opt.value;
-                            sel.dispatchEvent(new Event('change', {bubbles: true}));
-                            break;
-                        }
-                    }
-                }
+            # Now get the site/property address from Layer 22
+            if tms:
+                site = self._query_site_address(tms)
+                if site:
+                    result.update(site)
+
+            log.info("GIS found: %s → mail: %s | site: %s",
+                     owner_name[:25],
+                     result.get("mail_address","")[:30],
+                     result.get("prop_address","")[:30])
+            return result
+
+        except Exception as e:
+            log.debug("GIS lookup error for %s: %s", owner_name[:25], e)
+            return None
+
+    def _query_site_address(self, tms: str) -> Optional[dict]:
+        """Query Layer 22 by TMS to get site/property address."""
+        try:
+            safe_tms = tms.replace("'","''")
+            resp = self.session.get(ADDRESS_URL, params={
+                "where":          f"TMS = '{safe_tms}'",
+                "outFields":      "ADDRESS,CITY,STATE,ZIPCODE",
+                "returnGeometry": "false",
+                "f":              "json",
+            }, timeout=10)
+
+            if resp.status_code != 200:
+                return None
+
+            features = resp.json().get("features", [])
+            if not features:
+                return None
+
+            attrs = features[0]["attributes"]
+            return {
+                "prop_address": (attrs.get("ADDRESS","") or "").strip(),
+                "prop_city":    (attrs.get("CITY","") or "").strip(),
+                "prop_state":   (attrs.get("STATE","SC") or "SC").strip(),
+                "prop_zip":     str(attrs.get("ZIPCODE","") or "").strip(),
             }
-        """)
-
-        # Fill search box
-        for sel in ["#txtSearch", "input[type='text']", "input[placeholder*='search' i]",
-                    "input[placeholder*='name' i]", ".search-input"]:
-            try:
-                el = page.locator(sel).first
-                if await el.count() > 0:
-                    await el.click(triple_click=True)
-                    await el.fill(owner_name)
-                    log.debug("QPay: filled search with %s", owner_name[:30])
-                    break
-            except Exception:
-                pass
-
-        # Click search button
-        for sel in ["#btnSearch", "input[value*='Search' i]",
-                    "button:has-text('Search')", "input[type='submit']"]:
-            try:
-                el = page.locator(sel).first
-                if await el.count() > 0:
-                    await el.click()
-                    await page.wait_for_load_state("networkidle", timeout=15000)
-                    await asyncio.sleep(2)
-                    break
-            except Exception:
-                pass
-
-        # Read results
-        content = await page.content()
-        soup    = BeautifulSoup(content, "lxml")
-
-        # Log structure for debugging
-        page_text = await page.evaluate("() => document.body.innerText")
-        log.debug("QPay result preview for %s: %s", owner_name[:20], page_text[:200])
-
-        # Try to find address in results table
-        tables = soup.find_all("table")
-        for table in tables:
-            rows = table.find_all("tr")
-            if len(rows) < 2:
-                continue
-            headers = [th.get_text(strip=True).lower()
-                       for th in rows[0].find_all(["th","td"])]
-            log.debug("QPay table headers: %s", headers)
-
-            for row in rows[1:]:
-                cells = row.find_all("td")
-                if len(cells) < 2:
-                    continue
-
-                def cell(i):
-                    return cells[i].get_text(strip=True) if i < len(cells) else ""
-
-                def find(*names):
-                    for name in names:
-                        for i, h in enumerate(headers):
-                            if name in h:
-                                return cell(i)
-                    return ""
-
-                # Look for address column
-                addr = (find("address","location","property","site","street") or
-                        find("situs"))
-
-                # If no header match, scan cells for address pattern
-                if not addr:
-                    for i, c in enumerate(cells):
-                        text = c.get_text(strip=True)
-                        if re.search(r'\d+\s+[A-Za-z]', text) and len(text) > 8:
-                            addr = text
-                            break
-
-                if addr and addr.strip():
-                    log.info("QPay address found for %s: %s",
-                             owner_name[:25], addr[:40])
-                    return {
-                        "prop_address": addr.strip(),
-                        "prop_city":    find("city") or "",
-                        "prop_state":   "SC",
-                        "prop_zip":     find("zip","postal") or "",
-                        "mail_address": find("mail","mailing") or addr.strip(),
-                        "mail_city":    find("mail city") or "",
-                        "mail_state":   "SC",
-                        "mail_zip":     find("mail zip") or "",
-                    }
-
-        # Also try reading from page text directly
-        lines = [l.strip() for l in page_text.split('\n') if l.strip()]
-        for i, line in enumerate(lines):
-            if re.search(r'\d+\s+[A-Za-z].*(?:ST|AVE|RD|DR|LN|WAY|BLVD|CT|CIR|HWY)',
-                         line.upper()):
-                log.info("QPay address from text for %s: %s",
-                         owner_name[:25], line[:40])
-                return {
-                    "prop_address": line,
-                    "prop_city":    lines[i+1] if i+1 < len(lines) else "",
-                    "prop_state":   "SC",
-                    "prop_zip":     "",
-                    "mail_address": line,
-                    "mail_city":    "",
-                    "mail_state":   "SC",
-                    "mail_zip":     "",
-                }
-
-    except Exception as e:
-        log.debug("QPay lookup error for %s: %s", owner_name[:25], e)
-
-    return None
+        except Exception as e:
+            log.debug("Site address lookup error for TMS %s: %s", tms, e)
+            return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -399,7 +363,6 @@ async def run_acclaim(page: Page) -> list:
                     }
                 }
             }
-            return 'not found';
         }
     """)
     await asyncio.sleep(2)
@@ -457,7 +420,7 @@ async def run_acclaim(page: Page) -> list:
         except Exception:
             pass
 
-    # Wait for Export button — poll up to 30 seconds
+    # Poll for Export button up to 30 seconds
     log.info("Waiting for Export to CSV button...")
     for attempt in range(15):
         for sel in [
@@ -471,7 +434,7 @@ async def run_acclaim(page: Page) -> list:
             try:
                 el = page.locator(sel).first
                 if await el.count() > 0:
-                    log.info("✓ Export button found (attempt %d): %s", attempt+1, sel)
+                    log.info("✓ Export found (attempt %d): %s", attempt+1, sel)
                     async with page.expect_download(timeout=30000) as dl_info:
                         await el.click()
                     download = await dl_info.value
@@ -479,7 +442,7 @@ async def run_acclaim(page: Page) -> list:
                     if path:
                         with open(path,"r",encoding="utf-8-sig",errors="ignore") as f:
                             content = f.read()
-                        log.info("✓ CSV downloaded: %d chars", len(content))
+                        log.info("✓ CSV: %d chars", len(content))
                         return parse_acclaim_csv(content)
             except Exception as e:
                 log.debug("Export attempt %d %s: %s", attempt+1, sel, e)
@@ -495,75 +458,73 @@ async def run_acclaim(page: Page) -> list:
 
 async def main():
     log.info("="*60)
-    log.info("Horry County Lead Scraper v12")
+    log.info("Horry County Lead Scraper — FINAL")
+    log.info("Address source: Horry County GIS REST API (free)")
     log.info("="*60)
-
-    if not PLAYWRIGHT_AVAILABLE:
-        log.error("Playwright not available")
-        return
 
     all_records = []
 
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(
-            headless=True,
-            args=["--no-sandbox","--disable-dev-shm-usage"]
-        )
-        context = await browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1280, "height": 1024},
-            accept_downloads=True,
-        )
-        page = await context.new_page()
-        page.set_default_timeout(20000)
+    # ── Step 1: Acclaim ───────────────────────────────────────────────────
+    log.info("STEP 1: Acclaim Register of Deeds")
+    if PLAYWRIGHT_AVAILABLE:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(
+                headless=True,
+                args=["--no-sandbox","--disable-dev-shm-usage"]
+            )
+            context = await browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                ),
+                viewport={"width": 1280, "height": 1024},
+                accept_downloads=True,
+            )
+            page = await context.new_page()
+            page.set_default_timeout(20000)
+            try:
+                acclaim_records = await run_acclaim(page)
+                all_records.extend(acclaim_records)
+                log.info("Acclaim records: %d", len(acclaim_records))
+            except Exception as e:
+                log.error("Acclaim error: %s", e, exc_info=True)
+            finally:
+                await browser.close()
+    else:
+        log.error("Playwright not available")
 
-        try:
-            # ── Step 1: Acclaim ───────────────────────────────────────────
-            log.info("STEP 1: Acclaim Register of Deeds")
-            acclaim_records = await run_acclaim(page)
-            log.info("Acclaim records: %d", len(acclaim_records))
-            all_records.extend(acclaim_records)
+    # ── Step 2: GIS Address Lookup ────────────────────────────────────────
+    log.info("STEP 2: GIS Address Lookup")
+    gis = GISLookup()
+    unique_owners = list(dict.fromkeys(
+        r["owner"] for r in all_records if r.get("owner","").strip()
+    ))
+    log.info("Looking up %d unique owners via GIS API...", len(unique_owners))
 
-            # ── Step 2: QPay address lookup ───────────────────────────────
-            log.info("STEP 2: QPay Address Lookup")
-            # Get unique owners that need addresses
-            needs_addr = [r for r in all_records if not r.get("prop_address","").strip()]
-            unique_owners = list(dict.fromkeys(
-                r["owner"] for r in needs_addr if r.get("owner","").strip()
-            ))
-            log.info("Looking up addresses for %d unique owners...", len(unique_owners))
+    addr_cache = {}
+    enriched   = 0
+    for owner in unique_owners:
+        addr = gis.lookup(owner)
+        addr_cache[owner] = addr
+        if addr:
+            enriched += 1
+        time.sleep(0.1)  # be polite to the API
 
-            addr_cache = {}
-            enriched   = 0
+    # Apply addresses
+    for r in all_records:
+        owner = r.get("owner","")
+        if owner in addr_cache and addr_cache[owner]:
+            data = addr_cache[owner]
+            r["prop_address"] = data.get("prop_address","")
+            r["prop_city"]    = data.get("prop_city","")
+            r["prop_state"]   = data.get("prop_state","SC")
+            r["prop_zip"]     = data.get("prop_zip","")
+            r["mail_address"] = data.get("mail_address","")
+            r["mail_city"]    = data.get("mail_city","")
+            r["mail_state"]   = data.get("mail_state","SC")
+            r["mail_zip"]     = data.get("mail_zip","")
 
-            for owner in unique_owners:
-                if owner in addr_cache:
-                    continue
-                log.info("QPay lookup: %s", owner[:40])
-                addr = await lookup_address_qpay(page, owner)
-                addr_cache[owner] = addr
-                if addr:
-                    enriched += 1
-                    log.info("  → Found: %s", addr.get("prop_address","")[:40])
-                else:
-                    log.info("  → No address found")
-                await asyncio.sleep(0.5)
-
-            # Apply addresses to records
-            for r in all_records:
-                owner = r.get("owner","")
-                if owner in addr_cache and addr_cache[owner]:
-                    r.update(addr_cache[owner])
-
-            log.info("Addresses found: %d / %d owners", enriched, len(unique_owners))
-
-        except Exception as e:
-            log.error("Main error: %s", e, exc_info=True)
-        finally:
-            await browser.close()
+    log.info("Addresses enriched: %d / %d owners", enriched, len(unique_owners))
 
     # ── Step 3: Deduplicate + Score ───────────────────────────────────────
     seen, unique = set(), []
@@ -584,21 +545,21 @@ async def main():
     start_date, end_date = date_range_str()
     repo = Path(__file__).parent.parent
 
+    payload = {
+        "fetched_at":   datetime.now().isoformat(),
+        "source":       "Horry County Register of Deeds + GIS",
+        "date_range":   {"start": start_date, "end": end_date},
+        "total":        len(unique),
+        "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
+        "records":      unique,
+    }
     for path in [repo/"dashboard"/"records.json", repo/"data"/"records.json"]:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            json.dump({
-                "fetched_at":   datetime.now().isoformat(),
-                "source":       "Horry County Register of Deeds",
-                "date_range":   {"start": start_date, "end": end_date},
-                "total":        len(unique),
-                "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
-                "records":      unique,
-            }, f, indent=2, default=str)
+            json.dump(payload, f, indent=2, default=str)
         log.info("Saved → %s", path)
 
     # GHL CSV
-    csv_path = repo/"data"/"leads_export.csv"
     fieldnames = [
         "First Name","Last Name","Mailing Address","Mailing City",
         "Mailing State","Mailing Zip","Property Address","Property City",
@@ -606,6 +567,7 @@ async def main():
         "Date Filed","Document Number","Amount/Debt Owed","Seller Score",
         "Motivated Seller Flags","Source","Public Records URL",
     ]
+    csv_path = repo/"data"/"leads_export.csv"
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
