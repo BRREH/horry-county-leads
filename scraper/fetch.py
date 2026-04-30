@@ -532,13 +532,14 @@ async def main():
 
         if owner:
             names_to_lookup.add(owner)
-        # Also look up grantee for lien records AND probate
+        # Also look up grantee for lien records AND probate AND pre-foreclosure
         if grantee and (
             "HOA" in cat_label.upper() or
             "CONDO" in cat_label.upper() or
             "MECHANIC" in cat_label.upper() or
             cat == "LN" or
-            cat == "PRO"  # Probate — look up the heir
+            cat == "PRO" or   # Probate — look up the heir
+            cat == "NOFC"     # Pre-Foreclosure — look up the homeowner
         ):
             names_to_lookup.add(grantee)
 
@@ -568,7 +569,8 @@ async def main():
             "CONDO" in cat_label or
             "MECHANIC" in cat_label or
             "CHILD SUPPORT" in cat_label or
-            cat == "PRO"  # Probate — heir is the grantee
+            cat == "PRO" or   # Probate — heir is the grantee
+            cat == "NOFC"     # Pre-Foreclosure — homeowner is the grantee
         )
 
         if use_grantee and grantee:
