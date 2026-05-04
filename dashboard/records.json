@@ -1,9 +1,9 @@
 {
-  "fetched_at": "2026-05-03T10:36:55.177620",
+  "fetched_at": "2026-05-04T12:19:10.941692",
   "source": "Horry County Register of Deeds + GIS",
   "date_range": {
-    "start": "04/26/2026",
-    "end": "05/03/2026"
+    "start": "04/27/2026",
+    "end": "05/04/2026"
   },
   "total": 176,
   "with_address": 91,
@@ -78,10 +78,10 @@
       "prop_city": "",
       "prop_state": "SC",
       "prop_zip": "",
-      "mail_address": "12 YORKSHIRE DR",
-      "mail_city": "HACKETTSTOWN",
-      "mail_state": "NJ",
-      "mail_zip": "07840",
+      "mail_address": "9480 RONDA CT",
+      "mail_city": "MYRTLE BEACH",
+      "mail_state": "SC",
+      "mail_zip": "29579",
       "flags": [
         "HOA lien",
         "LLC / corp owner",
@@ -206,14 +206,14 @@
       "legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=GRAND%20STRAND%20WATER%20AND%20SEWER%20AUTHORITY",
       "source": "Register of Deeds",
-      "prop_address": "4511 OSPREY ST",
-      "prop_city": "North Myrtle Beach",
+      "prop_address": "1663 NINTH AVE",
+      "prop_city": "Conway",
       "prop_state": "SC",
-      "prop_zip": "29582",
-      "mail_address": "1019 BROOKWOOD DR",
-      "mail_city": "KINGS MOUNTAIN",
-      "mail_state": "NC",
-      "mail_zip": "28086",
+      "prop_zip": "29527",
+      "mail_address": "5510 SKYVIEW DR",
+      "mail_city": "ATLANTA",
+      "mail_state": "GA",
+      "mail_zip": "30331",
       "flags": [
         "HOA lien",
         "New this week"
@@ -2453,7 +2453,7 @@
       "legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "1691 RACEPATH ST",
+      "prop_address": "1539 RACEPATH ST",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29577",
@@ -2792,31 +2792,6 @@
       "score": 45
     },
     {
-      "doc_num": "305/3006",
-      "doc_type": "LN",
-      "filed": "4/27/2026 ",
-      "cat": "LN",
-      "cat_label": "HOA/Condo Lien",
-      "owner": "DUKE RANDALL G",
-      "grantee": "BROADWAY STATION",
-      "amount": null,
-      "legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=BROADWAY%20STATION",
-      "source": "Register of Deeds",
-      "prop_address": "301 CRAVEN SWAMP DR",
-      "prop_city": "Murrells Inlet",
-      "prop_state": "SC",
-      "prop_zip": "29576",
-      "mail_address": "8820 MARINA PKWY",
-      "mail_city": "MYRTLE BEACH",
-      "mail_state": "SC",
-      "mail_zip": "29572",
-      "flags": [
-        "HOA lien"
-      ],
-      "score": 45
-    },
-    {
       "doc_num": "305/3026",
       "doc_type": "LN",
       "filed": "4/27/2026 ",
@@ -2861,6 +2836,31 @@
       "mail_city": "MESA",
       "mail_state": "AZ",
       "mail_zip": "85209",
+      "flags": [
+        "HOA lien"
+      ],
+      "score": 45
+    },
+    {
+      "doc_num": "305/3239",
+      "doc_type": "LN",
+      "filed": "5/1/2026 1",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "COOKE ALISHA",
+      "grantee": "BLACK CREEK PLANTATION PROPERTY OWNERS ASSOCIATION INC",
+      "amount": null,
+      "legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=BLACK%20CREEK%20PLANTATION%20PROPERTY%20OWNERS%20ASSOCIATION%20INC",
+      "source": "Register of Deeds",
+      "prop_address": "859 REDWOLF TRL",
+      "prop_city": "Myrtle Beach",
+      "prop_state": "SC",
+      "prop_zip": "29579",
+      "mail_address": "PO BOX 50532",
+      "mail_city": "MYRTLE BEACH",
+      "mail_state": "SC",
+      "mail_zip": "29579",
       "flags": [
         "HOA lien"
       ],
@@ -3767,6 +3767,31 @@
       "score": 40
     },
     {
+      "doc_num": "305/3006",
+      "doc_type": "LN",
+      "filed": "4/27/2026 ",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "DUKE RANDALL G",
+      "grantee": "BROADWAY STATION",
+      "amount": null,
+      "legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=BROADWAY%20STATION",
+      "source": "Register of Deeds",
+      "prop_address": "",
+      "prop_city": "",
+      "prop_state": "SC",
+      "prop_zip": "",
+      "mail_address": "8820 MARINA PKWY",
+      "mail_city": "MYRTLE BEACH",
+      "mail_state": "SC",
+      "mail_zip": "29572",
+      "flags": [
+        "HOA lien"
+      ],
+      "score": 40
+    },
+    {
       "doc_num": "305/3010",
       "doc_type": "LN",
       "filed": "4/27/2026 ",
@@ -4036,31 +4061,6 @@
       "mail_city": "",
       "mail_state": "SC",
       "mail_zip": "",
-      "flags": [
-        "HOA lien"
-      ],
-      "score": 40
-    },
-    {
-      "doc_num": "305/3239",
-      "doc_type": "LN",
-      "filed": "5/1/2026 1",
-      "cat": "LN",
-      "cat_label": "HOA/Condo Lien",
-      "owner": "COOKE ALISHA",
-      "grantee": "BLACK CREEK PLANTATION PROPERTY OWNERS ASSOCIATION INC",
-      "amount": null,
-      "legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=BLACK%20CREEK%20PLANTATION%20PROPERTY%20OWNERS%20ASSOCIATION%20INC",
-      "source": "Register of Deeds",
-      "prop_address": "",
-      "prop_city": "",
-      "prop_state": "SC",
-      "prop_zip": "",
-      "mail_address": "PO BOX 50532",
-      "mail_city": "MYRTLE BEACH",
-      "mail_state": "SC",
-      "mail_zip": "29579",
       "flags": [
         "HOA lien"
       ],
