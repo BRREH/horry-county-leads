@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -376,7 +377,7 @@ a.view-link:hover { text-decoration: underline; }
   <div class="stat"><div class="stat-label">Lis Pendens</div><div class="stat-value red" id="sLP">—</div></div>
   <div class="stat"><div class="stat-label">Judgments</div><div class="stat-value black" id="sJUD">—</div></div>
   <div class="stat"><div class="stat-label">Liens</div><div class="stat-value black" id="sLN">—</div></div>
-  <div class="stat"><div class="stat-label">Code Violations</div><div class="stat-value amber" id="sCV">—</div></div>
+  <div class="stat"><div class="stat-label">Probate</div><div class="stat-value blue" id="sProb">—</div></div>
   <div class="stat"><div class="stat-label">Avg Score</div><div class="stat-value blue" id="sAvg">—</div></div>
 </div>
 
@@ -494,7 +495,7 @@ function updateStats() {
   document.getElementById('sLP').textContent    = ALL.filter(r=>r.cat==='LP').length;
   document.getElementById('sJUD').textContent   = ALL.filter(r=>r.cat==='JUD').length;
   document.getElementById('sLN').textContent    = ALL.filter(r=>r.cat==='LN').length;
-  document.getElementById('sCV').textContent    = ALL.filter(r=>r.cat==='CV').length;
+  document.getElementById('sProb').textContent  = ALL.filter(r=>r.cat==='PRO').length;
   const avg = ALL.length ? Math.round(ALL.reduce((s,r)=>s+(r.score||0),0)/ALL.length) : 0;
   document.getElementById('sAvg').textContent   = avg;
 }
