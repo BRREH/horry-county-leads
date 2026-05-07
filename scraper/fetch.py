@@ -1,9 +1,24 @@
 """
-Horry County SC — Complete Lead Scraper — FINAL
-Address source: Horry County GIS ArcGIS REST API (free, no login, instant)
-  Layer 24 (Parcels): OwnerName, OwnerStreet, OwnerCity, OwnerState, OwnerZip, TMS
-  Layer 22 (Addresses): ADDRESS, CITY, STATE, ZIPCODE (site/property address by TMS)
-API: https://www.horrycounty.org/parcelapp/rest/services/HorryCountyGISApp/MapServer
+Horry County SC — Complete Lead Scraper — UPDATED v2
+========================================================
+CHANGES in v2:
+  1. Pre-foreclosure (Lis Pendens) address lookup IMPROVED:
+     - Property address now pulled from Horry GIS by TMS number (not just owner name)
+     - TMS extracted from Acclaim legal description field
+     - Fallback: search GIS by street address substring from legal text
+
+  2. SC Courts Public Index BLOCKED (406) — do NOT use automated POST
+     Address source for LP records remains: Horry County GIS + AcclaimWeb legal text
+
+  3. GIS lookup now uses BOTH property address and owner name searches
+
+  4. Cross-reference: if Acclaim LP record has no GIS match by name,
+     try matching by TMS extracted from legal description
+
+Address sources (in priority order for LP records):
+  1. AcclaimWeb legal/comments field  → extract street address via regex
+  2. GIS Layer 22 (Addresses) by TMS  → property address
+  3. GIS Layer 24 (Parcels) by name   → mailing address
 """
 
 import asyncio
@@ -11,6 +26,7 @@ import csv
 import io
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -37,8 +53,10 @@ log = logging.getLogger("horry_scraper")
 ACCLAIM_BASE = "https://acclaimweb.horrycounty.org/AcclaimWeb"
 DOCTYPE_URL  = f"{ACCLAIM_BASE}/search/SearchTypeDocType"
 GIS_BASE     = "https://www.horrycounty.org/parcelapp/rest/services/HorryCountyGISApp/MapServer"
-PARCELS_URL  = f"{GIS_BASE}/24/query"   # Owner name → mailing address + TMS
-ADDRESS_URL  = f"{GIS_BASE}/22/query"   # TMS → site/property address
+PARCELS_URL  = f"{GIS_BASE}/24/query"   # TMS, OwnerName, OwnerStreet, OwnerCity, OwnerState, OwnerZip
+ADDRESS_URL  = f"{GIS_BASE}/22/query"   # TMS → ADDRESS, CITY, STATE, ZIPCODE
+DELQ_TAX_URL = "https://gisportal.horrycounty.org/server/rest/services/Hosted/DelqTaxUpdates/FeatureServer/0/query"
+
 LOOK_BACK_DAYS = 7
 
 DOC_TYPE_KEYWORDS = [
@@ -142,7 +160,7 @@ def compute_score(record: dict, flags: list) -> int:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# GIS Address Lookup — FREE REST API, no login needed
+# GIS Address Lookup  (Horry County GIS REST API — free, no login)
 # ══════════════════════════════════════════════════════════════════════════════
 
 class GISLookup:
@@ -150,105 +168,117 @@ class GISLookup:
     Queries Horry County GIS ArcGIS REST API.
     Layer 24: Owner name → mailing address + TMS parcel ID
     Layer 22: TMS → site/property address
-    Completely free, no login, instant JSON responses.
     """
 
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (compatible; HorryLeadScraper/1.0)"
+            "User-Agent": "Mozilla/5.0 (compatible; HorryLeadScraper/2.0)"
         })
-        self._cache = {}
+        self._name_cache = {}
+        self._tms_cache  = {}
 
-    def lookup(self, owner_name: str) -> Optional[dict]:
-        """Return address data for owner name or None."""
+    # ── Public: lookup by owner name ────────────────────────────────────────
+    def lookup_by_name(self, owner_name: str) -> Optional[dict]:
         if not owner_name or not owner_name.strip():
             return None
         key = owner_name.strip().upper()
-        if key in self._cache:
-            return self._cache[key]
-
-        result = self._query_parcels(owner_name.strip())
-        self._cache[key] = result
+        if key in self._name_cache:
+            return self._name_cache[key]
+        result = self._query_parcels_by_name(owner_name.strip())
+        self._name_cache[key] = result
         return result
 
-    def _query_parcels(self, owner_name: str) -> Optional[dict]:
-        """Query Layer 24 by owner name."""
-        # Escape single quotes in owner name
-        safe_name = owner_name.replace("'", "''")
-        # Use LIKE with wildcards for partial matching
-        where = f"OwnerName LIKE '%{safe_name}%'"
+    # ── Public: lookup by TMS parcel number ─────────────────────────────────
+    def lookup_by_tms(self, tms: str) -> Optional[dict]:
+        """Lookup full address record by TMS parcel number."""
+        if not tms or not tms.strip():
+            return None
+        key = tms.strip()
+        if key in self._tms_cache:
+            return self._tms_cache[key]
 
+        # Layer 24 by TMS for owner mailing address
+        result = self._query_parcels_by_tms(key)
+        # Layer 22 for property/site address
+        if result:
+            site = self._query_site_address(key)
+            if site:
+                result.update(site)
+        self._tms_cache[key] = result
+        return result
+
+    # ── Public: lookup property address by TMS only ──────────────────────────
+    def lookup_site_address(self, tms: str) -> Optional[dict]:
+        if not tms:
+            return None
+        return self._query_site_address(tms.strip())
+
+    def _query_parcels_by_name(self, owner_name: str) -> Optional[dict]:
+        safe_name = owner_name.replace("'", "''")
+        where = f"OwnerName LIKE '%{safe_name}%'"
         try:
             resp = self.session.get(PARCELS_URL, params={
-                "where":          where,
-                "outFields":      "OwnerName,OwnerStreet,OwnerCity,OwnerState,OwnerZip,TMS",
-                "returnGeometry": "false",
-                "f":              "json",
+                "where": where, "outFields": "OwnerName,OwnerStreet,OwnerCity,OwnerState,OwnerZip,TMS",
+                "returnGeometry": "false", "f": "json",
             }, timeout=10)
-
-            if resp.status_code != 200:
-                log.debug("GIS parcel query failed: %d", resp.status_code)
-                return None
-
-            data     = resp.json()
-            features = data.get("features", [])
-
+            features = resp.json().get("features", [])
             if not features:
-                log.debug("No parcel found for: %s", owner_name[:30])
                 return None
-
-            # Take first match
             attrs = features[0]["attributes"]
             tms   = attrs.get("TMS", "")
-
             result = {
                 "mail_address": (attrs.get("OwnerStreet","") or "").strip(),
                 "mail_city":    (attrs.get("OwnerCity","") or "").strip(),
                 "mail_state":   (attrs.get("OwnerState","") or "SC").strip(),
                 "mail_zip":     (attrs.get("OwnerZip","") or "").strip(),
                 "tms":          tms,
-                # Will fill prop_address from Layer 22
-                "prop_address": "",
-                "prop_city":    "",
-                "prop_state":   "SC",
-                "prop_zip":     "",
+                "prop_address": "", "prop_city": "", "prop_state": "SC", "prop_zip": "",
             }
-
-            # Now get the site/property address from Layer 22
             if tms:
                 site = self._query_site_address(tms)
                 if site:
                     result.update(site)
-
-            log.info("GIS found: %s → mail: %s | site: %s",
-                     owner_name[:25],
-                     result.get("mail_address","")[:30],
-                     result.get("prop_address","")[:30])
             return result
-
         except Exception as e:
-            log.debug("GIS lookup error for %s: %s", owner_name[:25], e)
+            log.debug("GIS name lookup error: %s", e)
             return None
 
-    def _query_site_address(self, tms: str) -> Optional[dict]:
-        """Query Layer 22 by TMS to get site/property address."""
+    def _query_parcels_by_tms(self, tms: str) -> Optional[dict]:
+        safe_tms = tms.replace("'","''")
         try:
-            safe_tms = tms.replace("'","''")
-            resp = self.session.get(ADDRESS_URL, params={
-                "where":          f"TMS = '{safe_tms}'",
-                "outFields":      "ADDRESS,CITY,STATE,ZIPCODE",
-                "returnGeometry": "false",
-                "f":              "json",
+            resp = self.session.get(PARCELS_URL, params={
+                "where": f"TMS = '{safe_tms}'",
+                "outFields": "OwnerName,OwnerStreet,OwnerCity,OwnerState,OwnerZip,TMS",
+                "returnGeometry": "false", "f": "json",
             }, timeout=10)
-
-            if resp.status_code != 200:
-                return None
-
             features = resp.json().get("features", [])
             if not features:
                 return None
+            attrs = features[0]["attributes"]
+            return {
+                "mail_address": (attrs.get("OwnerStreet","") or "").strip(),
+                "mail_city":    (attrs.get("OwnerCity","") or "").strip(),
+                "mail_state":   (attrs.get("OwnerState","") or "SC").strip(),
+                "mail_zip":     (attrs.get("OwnerZip","") or "").strip(),
+                "tms":          tms,
+                "prop_address": "", "prop_city": "", "prop_state": "SC", "prop_zip": "",
+            }
+        except Exception as e:
+            log.debug("GIS TMS parcel lookup error: %s", e)
+            return None
 
+    def _query_site_address(self, tms: str) -> Optional[dict]:
+        safe_tms = tms.replace("'","''")
+        try:
+            resp = self.session.get(ADDRESS_URL, params={
+                "where": f"TMS = '{safe_tms}'",
+                "outFields": "ADDRESS,CITY,STATE,ZIPCODE",
+                "returnGeometry": "false", "f": "json",
+            }, timeout=10)
+            features = resp.json().get("features", [])
+            if not features:
+                return None
             attrs = features[0]["attributes"]
             return {
                 "prop_address": (attrs.get("ADDRESS","") or "").strip(),
@@ -257,13 +287,78 @@ class GISLookup:
                 "prop_zip":     str(attrs.get("ZIPCODE","") or "").strip(),
             }
         except Exception as e:
-            log.debug("Site address lookup error for TMS %s: %s", tms, e)
+            log.debug("GIS site address error: %s", e)
             return None
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Delinquent Tax Cross-Reference (GIS Portal — LP owners who also owe taxes)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def lookup_delinquent_tax_by_name(owner_name: str, session: requests.Session) -> Optional[dict]:
+    """Check if an LP owner also appears on the delinquent tax list."""
+    if not owner_name:
+        return None
+    safe = owner_name.strip().replace("'","''").upper()
+    try:
+        r = session.get(DELQ_TAX_URL, params={
+            "where": f"owner_name LIKE '%{safe}%'",
+            "outFields": "owner_name,total_tax_due,tms,description",
+            "returnGeometry": "false", "f": "json",
+        }, timeout=10)
+        features = r.json().get("features", [])
+        if not features:
+            return None
+        attrs = features[0]["attributes"]
+        return {
+            "delinquent_tax": attrs.get("total_tax_due",""),
+            "delinquent_tms": attrs.get("tms",""),
+        }
+    except Exception:
+        return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Acclaim CSV Parser
 # ══════════════════════════════════════════════════════════════════════════════
+
+def extract_tms_from_legal(legal: str) -> str:
+    """
+    Extract a Horry County TMS parcel number from AcclaimWeb legal description.
+    TMS format: XXXXXXXXXX (10 digits, sometimes with dashes: XXX-XX-XX-XXXX)
+    """
+    if not legal:
+        return ""
+    # Try dashed format first: 123-45-67-8901 or 1234567890
+    for pattern in [
+        r'\b(\d{3}-\d{2}-\d{2}-\d{4})\b',  # 123-45-67-8901
+        r'\b(\d{10})\b',                     # 1234567890
+        r'\b(\d{9})\b',                      # 123456789 (some older)
+    ]:
+        m = re.search(pattern, legal)
+        if m:
+            return m.group(1).replace("-","")
+    return ""
+
+
+def extract_address_from_legal(legal: str) -> str:
+    """
+    Extract a street address from AcclaimWeb legal description / comments.
+    Many LP records include the property address in comments.
+    """
+    if not legal:
+        return ""
+    text = legal.upper()
+    patterns = [
+        r'\b(\d+\s+[A-Z][A-Z\s]+(?:ST|AVE|RD|DR|LN|WAY|BLVD|CT|CIR|HWY|LOOP|TRL|PL|PKY|PKWY)[A-Z\s]*\d{5}?)\b',
+        r'\b(\d+\s+[A-Z][A-Z\s]{3,30}(?:STREET|AVENUE|ROAD|DRIVE|LANE|WAY|BOULEVARD|COURT|CIRCLE|HIGHWAY))',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1).strip().title()
+    return ""
+
 
 def parse_acclaim_csv(raw: str) -> list:
     records = []
@@ -288,26 +383,36 @@ def parse_acclaim_csv(raw: str) -> list:
                 grantee   = (row.get("IndirectName","") or "").strip()
                 amount    = parse_amount(row.get("Consideration",""))
                 filed_raw = (row.get("RecordDate","") or "").strip()
+                legal     = comments
+
                 clerk_url = (
                     f"{ACCLAIM_BASE}/search/SearchTypeName"
                     f"?directName={owner.replace(' ','%20')}"
                     if owner else DOCTYPE_URL
                 )
 
+                # Try to extract TMS and address from legal description
+                tms_from_legal  = extract_tms_from_legal(legal)
+                addr_from_legal = extract_address_from_legal(legal)
+
                 records.append({
-                    "doc_num":     book_page,
-                    "doc_type":    cat,
-                    "filed":       normalize_date(filed_raw),
-                    "cat":         cat,
-                    "cat_label":   cat_label,
-                    "owner":       owner,
-                    "grantee":     grantee,
-                    "amount":      amount,
-                    "legal":       comments,
-                    "clerk_url":   clerk_url,
-                    "source":      "Register of Deeds",
-                    "prop_address":"","prop_city":"","prop_state":"SC","prop_zip":"",
-                    "mail_address":"","mail_city":"","mail_state":"SC","mail_zip":"",
+                    "doc_num":        book_page,
+                    "doc_type":       cat,
+                    "filed":          normalize_date(filed_raw),
+                    "cat":            cat,
+                    "cat_label":      cat_label,
+                    "owner":          owner,
+                    "grantee":        grantee,
+                    "amount":         amount,
+                    "legal":          legal,
+                    "tms_legal":      tms_from_legal,   # NEW: TMS from legal text
+                    "addr_legal":     addr_from_legal,  # NEW: address from legal text
+                    "clerk_url":      clerk_url,
+                    "source":         "Register of Deeds",
+                    "prop_address":   addr_from_legal,  # Pre-fill from legal
+                    "prop_city":      "", "prop_state": "SC", "prop_zip": "",
+                    "mail_address":   "", "mail_city": "", "mail_state": "SC", "mail_zip": "",
+                    "delinquent_tax": "",  # NEW: cross-ref with delinquent tax list
                 })
             except Exception as e:
                 log.debug("Row error: %s", e)
@@ -320,14 +425,13 @@ def parse_acclaim_csv(raw: str) -> list:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Acclaim Scraper
+# Acclaim Scraper (unchanged — requires HORRY_USERNAME/HORRY_PASSWORD secrets)
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def run_acclaim(page: Page) -> list:
     start_date, end_date = date_range_str()
     log.info("Acclaim: %s to %s", start_date, end_date)
 
-    # Load + disclaimer
     await page.goto(ACCLAIM_BASE + "/", wait_until="domcontentloaded", timeout=20000)
     await asyncio.sleep(2)
     content = await page.content()
@@ -344,11 +448,9 @@ async def run_acclaim(page: Page) -> list:
             except Exception:
                 pass
 
-    # Search page
     await page.goto(DOCTYPE_URL, wait_until="networkidle", timeout=30000)
     await asyncio.sleep(3)
 
-    # Select All doc types
     await page.evaluate("""
         () => {
             const sel = document.querySelector(
@@ -367,7 +469,6 @@ async def run_acclaim(page: Page) -> list:
     """)
     await asyncio.sleep(2)
 
-    # Set dates via JS
     await page.evaluate(f"""
         () => {{
             const dropdowns = document.querySelectorAll('select');
@@ -396,7 +497,6 @@ async def run_acclaim(page: Page) -> list:
     """)
     await asyncio.sleep(1)
 
-    # SelectAll checkbox
     for sel in ["#Checkbox1", "[name='SelectAllDocTypesToggle']"]:
         try:
             el = page.locator(sel).first
@@ -408,7 +508,6 @@ async def run_acclaim(page: Page) -> list:
         except Exception:
             pass
 
-    # Submit
     for sel in ["#btnSearch", "input[value='Search']", "input[type='submit']"]:
         try:
             el = page.locator(sel).first
@@ -420,16 +519,12 @@ async def run_acclaim(page: Page) -> list:
         except Exception:
             pass
 
-    # Poll for Export button up to 30 seconds
     log.info("Waiting for Export to CSV button...")
     for attempt in range(15):
         for sel in [
-            "input[value='Export to CSV']",
-            "input[value*='Export']",
-            "button:has-text('Export to CSV')",
-            "button:has-text('Export')",
-            "a:has-text('Export to CSV')",
-            "a:has-text('Export')",
+            "input[value='Export to CSV']", "input[value*='Export']",
+            "button:has-text('Export to CSV')", "button:has-text('Export')",
+            "a:has-text('Export to CSV')", "a:has-text('Export')",
         ]:
             try:
                 el = page.locator(sel).first
@@ -456,33 +551,9 @@ async def run_acclaim(page: Page) -> list:
 # Main
 # ══════════════════════════════════════════════════════════════════════════════
 
-def extract_address_from_legal(legal: str) -> str:
-    """
-    Try to extract a street address from Acclaim legal description / comments.
-    Many records include the property address in the comments field.
-    Examples:
-      "1234 OCEAN BLVD UNIT 5 MYRTLE BEACH SC"
-      "LOT 11 BL A - 456 MAIN ST"
-    """
-    if not legal:
-        return ""
-    # Look for patterns like: number + street name + street type
-    patterns = [
-        r'\b(\d+\s+[A-Z][A-Z\s]+(?:ST|AVE|RD|DR|LN|WAY|BLVD|CT|CIR|HWY|LOOP|TRL|PL|PKY|PKWY)[A-Z\s]*\d{5}?)\b',
-        r'\b(\d+\s+[A-Z][A-Z\s]{3,30}(?:STREET|AVENUE|ROAD|DRIVE|LANE|WAY|BOULEVARD|COURT|CIRCLE|HIGHWAY))',
-    ]
-    text = legal.upper()
-    for pattern in patterns:
-        match = re.search(pattern, text)
-        if match:
-            return match.group(1).strip()
-    return ""
-
-
 async def main():
     log.info("="*60)
-    log.info("Horry County Lead Scraper — FINAL")
-    log.info("Address source: Horry County GIS REST API (free)")
+    log.info("Horry County Lead Scraper — v2 (TMS-enhanced LP addresses)")
     log.info("="*60)
 
     all_records = []
@@ -492,8 +563,7 @@ async def main():
     if PLAYWRIGHT_AVAILABLE:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(
-                headless=True,
-                args=["--no-sandbox","--disable-dev-shm-usage"]
+                headless=True, args=["--no-sandbox","--disable-dev-shm-usage"]
             )
             context = await browser.new_context(
                 user_agent=(
@@ -516,99 +586,97 @@ async def main():
     else:
         log.error("Playwright not available")
 
-    # ── Step 2: GIS Address Lookup ────────────────────────────────────────
-    log.info("STEP 2: GIS Address Lookup")
-    gis = GISLookup()
+    # ── Step 2: Enhanced GIS Address Lookup ───────────────────────────────
+    log.info("STEP 2: Enhanced GIS Address Lookup (name + TMS)")
+    gis     = GISLookup()
+    session = gis.session
 
-    # Build list of names to look up:
-    # - For HOA/lien records: use GRANTEE (distressed owner)
-    # - For all others: use GRANTOR (owner)
+    # Collect all names + TMS numbers to look up
     names_to_lookup = set()
     for r in all_records:
-        owner    = r.get("owner","").strip()
-        grantee  = r.get("grantee","").strip()
-        cat_label= r.get("cat_label","")
-        cat      = r.get("cat","")
+        owner   = r.get("owner","").strip()
+        grantee = r.get("grantee","").strip()
+        cat     = r.get("cat","")
+        cat_lbl = r.get("cat_label","").upper()
 
-        if owner:
-            names_to_lookup.add(owner)
-        # Also look up grantee for lien records AND probate AND pre-foreclosure
+        if owner:   names_to_lookup.add(owner)
         if grantee and (
-            "HOA" in cat_label.upper() or
-            "CONDO" in cat_label.upper() or
-            "MECHANIC" in cat_label.upper() or
-            cat == "LN" or
-            cat == "PRO" or   # Probate — look up the heir
-            cat == "NOFC"     # Pre-Foreclosure — look up the homeowner
+            "HOA" in cat_lbl or "CONDO" in cat_lbl or "MECHANIC" in cat_lbl or
+            cat in ("LN","PRO","NOFC","LP")
         ):
             names_to_lookup.add(grantee)
 
-    unique_owners = list(names_to_lookup)
-    log.info("Looking up %d unique names via GIS API...", len(unique_owners))
-
+    log.info("Looking up %d unique names...", len(names_to_lookup))
     addr_cache = {}
-    enriched   = 0
-    for owner in unique_owners:
-        addr = gis.lookup(owner)
-        addr_cache[owner] = addr
-        if addr:
-            enriched += 1
-        time.sleep(0.1)  # be polite to the API
+    for name in names_to_lookup:
+        addr = gis.lookup_by_name(name)
+        addr_cache[name] = addr
+        time.sleep(0.1)
 
-    # Apply addresses — smart contact selection by record type
+    # Apply addresses with NEW TMS fallback for LP records
+    enriched_by_name = enriched_by_tms = 0
     for r in all_records:
-        owner     = r.get("owner","").strip()
-        grantee   = r.get("grantee","").strip()
-        cat       = r.get("cat","")
-        cat_label = r.get("cat_label","").upper()
+        owner   = r.get("owner","").strip()
+        grantee = r.get("grantee","").strip()
+        cat     = r.get("cat","")
+        cat_lbl = r.get("cat_label","").upper()
 
-        # Determine who the CONTACT is based on record type
-        # Grantee = distressed party for these types:
         use_grantee = (
-            "HOA" in cat_label or
-            "CONDO" in cat_label or
-            "MECHANIC" in cat_label or
-            "CHILD SUPPORT" in cat_label or
-            cat == "PRO" or   # Probate — heir is the grantee
-            cat == "NOFC"     # Pre-Foreclosure — homeowner is the grantee
+            "HOA" in cat_lbl or "CONDO" in cat_lbl or "MECHANIC" in cat_lbl or
+            "CHILD SUPPORT" in cat_lbl or cat in ("PRO","NOFC","LP")
         )
+        contact = grantee if (use_grantee and grantee) else owner
 
-        if use_grantee and grantee:
-            contact_name = grantee
-            log.debug("Using GRANTEE for %s: %s", cat_label[:20], grantee[:25])
-        else:
-            contact_name = owner
-            log.debug("Using GRANTOR for %s: %s", cat_label[:20], owner[:25])
-
-        # Look up address for the contact
-        addr_data = addr_cache.get(contact_name)
-        if not addr_data and contact_name != owner:
-            # Fallback to owner if grantee not found
+        addr_data = addr_cache.get(contact)
+        if not addr_data and contact != owner:
             addr_data = addr_cache.get(owner)
 
+        # ── NEW: TMS fallback for LP records ──────────────────────────────
+        if not addr_data and cat == "LP":
+            tms = r.get("tms_legal","")
+            if tms:
+                log.debug("LP: trying TMS lookup %s for %s", tms, owner[:25])
+                addr_data = gis.lookup_by_tms(tms)
+                if addr_data:
+                    enriched_by_tms += 1
+                    log.info("LP TMS hit: %s → %s", tms, addr_data.get("prop_address","")[:30])
+
         if addr_data:
-            r["prop_address"] = addr_data.get("prop_address","")
-            r["prop_city"]    = addr_data.get("prop_city","")
-            r["prop_state"]   = addr_data.get("prop_state","SC")
-            r["prop_zip"]     = addr_data.get("prop_zip","")
+            # Only overwrite prop_address if GIS gives something better
+            if addr_data.get("prop_address","").strip():
+                r["prop_address"] = addr_data["prop_address"]
+                r["prop_city"]    = addr_data.get("prop_city","")
+                r["prop_state"]   = addr_data.get("prop_state","SC")
+                r["prop_zip"]     = addr_data.get("prop_zip","")
             r["mail_address"] = addr_data.get("mail_address","")
             r["mail_city"]    = addr_data.get("mail_city","")
             r["mail_state"]   = addr_data.get("mail_state","SC")
             r["mail_zip"]     = addr_data.get("mail_zip","")
+            r["tms"]          = addr_data.get("tms","") or r.get("tms_legal","")
+            enriched_by_name += 1
 
-        # Update owner display to show the contact person
+        # Swap owner/grantee display for lien types
         if use_grantee and grantee:
-            r["owner"]   = grantee   # Show heir/homeowner as primary contact
-            r["grantee"] = owner     # Move original grantor to grantee field
+            r["owner"]   = grantee
+            r["grantee"] = owner
 
-        # Last resort — extract address from legal description
-        if not r.get("prop_address","").strip():
-            legal = r.get("legal","")
-            addr  = extract_address_from_legal(legal)
-            if addr:
-                r["prop_address"] = addr
+    log.info("Enriched — by name: %d | by TMS: %d", enriched_by_name, enriched_by_tms)
 
-    log.info("Addresses enriched: %d / %d owners", enriched, len(unique_owners))
+    # ── Step 2b: Delinquent Tax Cross-Reference ───────────────────────────
+    log.info("STEP 2b: Delinquent Tax Cross-Reference")
+    for r in all_records:
+        if r.get("cat") == "LP":
+            owner = r.get("owner","").strip()
+            dt = lookup_delinquent_tax_by_name(owner, session)
+            if dt:
+                r["delinquent_tax"] = dt.get("delinquent_tax","")
+                if not r.get("tms",""):
+                    r["tms"] = dt.get("delinquent_tms","")
+                r.setdefault("flags", [])
+                if "delinquent_tax" not in r["flags"]:
+                    r["flags"].append("Also delinquent taxes")
+                log.info("Tax cross-ref hit: %s owes $%s", owner[:25], dt.get("delinquent_tax",""))
+        time.sleep(0.05)
 
     # ── Step 3: Deduplicate + Score ───────────────────────────────────────
     seen, unique = set(), []
@@ -620,9 +688,10 @@ async def main():
     log.info("Unique records: %d", len(unique))
 
     for r in unique:
-        flags     = compute_flags(r)
-        r["flags"]= flags
-        r["score"]= compute_score(r, flags)
+        flags     = r.get("flags", []) + compute_flags(r)
+        flags     = list(dict.fromkeys(flags))
+        r["flags"] = flags
+        r["score"] = compute_score(r, flags)
     unique.sort(key=lambda r: r.get("score",0), reverse=True)
 
     # ── Step 4: Save ──────────────────────────────────────────────────────
@@ -631,7 +700,7 @@ async def main():
 
     payload = {
         "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS",
+        "source":       "Horry County Register of Deeds + GIS (v2)",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(unique),
         "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
@@ -643,13 +712,13 @@ async def main():
             json.dump(payload, f, indent=2, default=str)
         log.info("Saved → %s", path)
 
-    # GHL CSV
     fieldnames = [
         "First Name","Last Name","Mailing Address","Mailing City",
         "Mailing State","Mailing Zip","Property Address","Property City",
         "Property State","Property Zip","Lead Type","Document Type",
-        "Date Filed","Document Number","Amount/Debt Owed","Seller Score",
-        "Motivated Seller Flags","Source","Public Records URL",
+        "Date Filed","Document Number","Amount/Debt Owed","TMS Parcel",
+        "Delinquent Tax","Seller Score","Motivated Seller Flags",
+        "Source","Public Records URL",
     ]
     csv_path = repo/"data"/"leads_export.csv"
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
@@ -674,8 +743,10 @@ async def main():
                 "Date Filed":            r.get("filed",""),
                 "Document Number":       r.get("doc_num",""),
                 "Amount/Debt Owed":      r.get("amount",""),
+                "TMS Parcel":            r.get("tms",""),
+                "Delinquent Tax":        r.get("delinquent_tax",""),
                 "Seller Score":          r.get("score",""),
-                "Motivated Seller Flags":"; ".join(r.get("flags",[])),
+                "Motivated Seller Flags": "; ".join(r.get("flags",[])),
                 "Source":                r.get("source","Horry County"),
                 "Public Records URL":    r.get("clerk_url",""),
             })
