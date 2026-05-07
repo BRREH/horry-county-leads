@@ -57,7 +57,7 @@ PARCELS_URL  = f"{GIS_BASE}/24/query"   # TMS, OwnerName, OwnerStreet, OwnerCity
 ADDRESS_URL  = f"{GIS_BASE}/22/query"   # TMS → ADDRESS, CITY, STATE, ZIPCODE
 DELQ_TAX_URL = "https://gisportal.horrycounty.org/server/rest/services/Hosted/DelqTaxUpdates/FeatureServer/0/query"
 
-LOOK_BACK_DAYS = 7
+LOOK_BACK_DAYS = 14
 
 DOC_TYPE_KEYWORDS = [
     ("LIS PENDENS",            "LP",      "Lis Pendens"),
