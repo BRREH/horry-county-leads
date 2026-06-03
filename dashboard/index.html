@@ -1,780 +1,752 @@
-"""
-Horry County SC — Complete Lead Scraper — UPDATED v3
-========================================================
-CHANGES in v3:
-  1. Code Violations removed entirely (EnerGov is staff-only / unscrapable)
-     - Removed CODE VIOLATION keyword, flag, and scoring bump
-  2. Dashboard/output sort order changed:
-     - Records now ordered NEWEST FILED FIRST, then HIGHEST SCORE within a day
-  3. Reliability guard added:
-     - If a scrape returns 0 records, the run FAILS (exit 1) and does NOT
-       overwrite records.json — preserving the last good data on the dashboard
-
-CHANGES in v2 (retained):
-  1. Pre-foreclosure (Lis Pendens) address lookup IMPROVED:
-     - Property address now pulled from Horry GIS by TMS number (not just owner name)
-     - TMS extracted from Acclaim legal description field
-     - Fallback: search GIS by street address substring from legal text
-
-  2. SC Courts Public Index BLOCKED (406) — do NOT use automated POST
-     Address source for LP records remains: Horry County GIS + AcclaimWeb legal text
-
-  3. GIS lookup now uses BOTH property address and owner name searches
-
-  4. Cross-reference: if Acclaim LP record has no GIS match by name,
-     try matching by TMS extracted from legal description
-
-Address sources (in priority order for LP records):
-  1. AcclaimWeb legal/comments field  → extract street address via regex
-  2. GIS Layer 22 (Addresses) by TMS  → property address
-  3. GIS Layer 24 (Parcels) by name   → mailing address
-"""
-
-import asyncio
-import csv
-import io
-import json
-import logging
-import os
-import re
-import sys
-import time
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional
-
-import requests
-from bs4 import BeautifulSoup
-
-try:
-    from playwright.async_api import async_playwright, Page
-    PLAYWRIGHT_AVAILABLE = True
-except ImportError:
-    PLAYWRIGHT_AVAILABLE = False
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-log = logging.getLogger("horry_scraper")
-
-ACCLAIM_BASE = "https://acclaimweb.horrycounty.org/AcclaimWeb"
-DOCTYPE_URL  = f"{ACCLAIM_BASE}/search/SearchTypeDocType"
-GIS_BASE     = "https://www.horrycounty.org/parcelapp/rest/services/HorryCountyGISApp/MapServer"
-PARCELS_URL  = f"{GIS_BASE}/24/query"   # TMS, OwnerName, OwnerStreet, OwnerCity, OwnerState, OwnerZip
-ADDRESS_URL  = f"{GIS_BASE}/22/query"   # TMS → ADDRESS, CITY, STATE, ZIPCODE
-DELQ_TAX_URL = "https://gisportal.horrycounty.org/server/rest/services/Hosted/DelqTaxUpdates/FeatureServer/0/query"
-
-LOOK_BACK_DAYS = 14
-
-DOC_TYPE_KEYWORDS = [
-    ("LIS PENDENS",            "LP",      "Lis Pendens"),
-    ("FORECLOSURE",            "NOFC",    "Notice of Foreclosure"),
-    ("TAX DEED",               "TAXDEED", "Tax Deed"),
-    ("JUDGMENT",               "JUD",     "Judgment"),
-    ("MECHANIC",               "LN",      "Mechanic Lien"),
-    ("CONDO LIEN",             "LN",      "HOA/Condo Lien"),
-    ("HOA LIEN",               "LN",      "HOA Lien"),
-    ("TAX LIEN",               "LN",      "Tax Lien"),
-    ("TAX LIENS",              "LN",      "Tax Lien"),
-    ("FEDERAL TAX",            "LN",      "Federal Tax Lien"),
-    ("STATE TAX",              "LN",      "State Tax Lien"),
-    ("CHILD SUPPORT LIEN",     "LN",      "Child Support Lien"),
-    ("MENTAL HEALTH LIEN",     "LN",      "Mental Health Lien"),
-    ("MEDICAID LIEN",          "LN",      "Medicaid Lien"),
-    ("HOSPITAL LIEN",          "LN",      "Medical Lien"),
-    ("IRS",                    "LN",      "IRS Lien"),
-    ("PROBATE",                "PRO",     "Probate Document"),
-    ("LETTERS TEST",           "PRO",     "Probate Document"),
-    ("LETTERS OF ADMIN",       "PRO",     "Probate Document"),
-    ("NOTICE OF COMMENCEMENT", "NOC",     "Notice of Commencement"),
-]
-
-
-def date_range_str():
-    end   = datetime.now()
-    start = end - timedelta(days=LOOK_BACK_DAYS)
-    return start.strftime("%m/%d/%Y"), end.strftime("%m/%d/%Y")
-
-
-def parse_amount(text):
-    if not text:
-        return None
-    cleaned = re.sub(r"[^\d.]", "", str(text).replace(",", ""))
-    try:
-        val = float(cleaned)
-        return val if val > 0 else None
-    except ValueError:
-        return None
-
-
-def normalize_date(raw):
-    for fmt in ("%m/%d/%Y %I:%M:%S %p", "%m/%d/%Y %H:%M:%S",
-                "%m/%d/%Y", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(str(raw).strip()[:19], fmt).strftime("%Y-%m-%d")
-        except Exception:
-            pass
-    return str(raw).strip()[:10]
-
-
-def classify_doc(description: str) -> Optional[tuple]:
-    desc = description.strip().upper()
-    for keyword, cat, label in DOC_TYPE_KEYWORDS:
-        if keyword in desc:
-            return (cat, label)
-    return None
-
-
-def compute_flags(record: dict) -> list:
-    flags     = []
-    cat       = record.get("cat", "")
-    cat_label = record.get("cat_label", "")
-    owner     = record.get("owner", "")
-    filed     = record.get("filed", "")
-
-    if cat == "LP":                                      flags.append("Lis pendens")
-    if cat == "NOFC":                                    flags.append("Pre-foreclosure")
-    if cat == "JUD":                                     flags.append("Judgment lien")
-    if "TAX" in cat_label.upper():                       flags.append("Tax lien")
-    if "MECHANIC" in cat_label.upper():                  flags.append("Mechanic lien")
-    if cat == "PRO":                                     flags.append("Probate / estate")
-    if "HOA" in cat_label.upper() or "CONDO" in cat_label.upper():
-        flags.append("HOA lien")
-    if owner and re.search(r"\b(LLC|INC|CORP|LTD|TRUST|HOLDINGS)\b", owner.upper()):
-        flags.append("LLC / corp owner")
-    try:
-        if (datetime.now() - datetime.strptime(filed, "%Y-%m-%d")).days <= 7:
-            flags.append("New this week")
-    except Exception:
-        pass
-    return list(dict.fromkeys(flags))
-
-
-def compute_score(record: dict, flags: list) -> int:
-    score = 30
-    score += len(flags) * 10
-    if "Lis pendens" in flags and "Pre-foreclosure" in flags: score += 20
-    amount = record.get("amount")
-    if amount:
-        if amount > 100_000: score += 15
-        elif amount > 50_000: score += 10
-    if "New this week"  in flags: score += 5
-    if record.get("prop_address", "").strip(): score += 5
-    return min(score, 100)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# GIS Address Lookup  (Horry County GIS REST API — free, no login)
-# ══════════════════════════════════════════════════════════════════════════════
-
-class GISLookup:
-    """
-    Queries Horry County GIS ArcGIS REST API.
-    Layer 24: Owner name → mailing address + TMS parcel ID
-    Layer 22: TMS → site/property address
-    """
-
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (compatible; HorryLeadScraper/3.0)"
-        })
-        self._name_cache = {}
-        self._tms_cache  = {}
-
-    # ── Public: lookup by owner name ────────────────────────────────────────
-    def lookup_by_name(self, owner_name: str) -> Optional[dict]:
-        if not owner_name or not owner_name.strip():
-            return None
-        key = owner_name.strip().upper()
-        if key in self._name_cache:
-            return self._name_cache[key]
-        result = self._query_parcels_by_name(owner_name.strip())
-        self._name_cache[key] = result
-        return result
-
-    # ── Public: lookup by TMS parcel number ─────────────────────────────────
-    def lookup_by_tms(self, tms: str) -> Optional[dict]:
-        """Lookup full address record by TMS parcel number."""
-        if not tms or not tms.strip():
-            return None
-        key = tms.strip()
-        if key in self._tms_cache:
-            return self._tms_cache[key]
-
-        # Layer 24 by TMS for owner mailing address
-        result = self._query_parcels_by_tms(key)
-        # Layer 22 for property/site address
-        if result:
-            site = self._query_site_address(key)
-            if site:
-                result.update(site)
-        self._tms_cache[key] = result
-        return result
-
-    # ── Public: lookup property address by TMS only ──────────────────────────
-    def lookup_site_address(self, tms: str) -> Optional[dict]:
-        if not tms:
-            return None
-        return self._query_site_address(tms.strip())
-
-    def _query_parcels_by_name(self, owner_name: str) -> Optional[dict]:
-        safe_name = owner_name.replace("'", "''")
-        where = f"OwnerName LIKE '%{safe_name}%'"
-        try:
-            resp = self.session.get(PARCELS_URL, params={
-                "where": where, "outFields": "OwnerName,OwnerStreet,OwnerCity,OwnerState,OwnerZip,TMS",
-                "returnGeometry": "false", "f": "json",
-            }, timeout=10)
-            features = resp.json().get("features", [])
-            if not features:
-                return None
-            attrs = features[0]["attributes"]
-            tms   = attrs.get("TMS", "")
-            result = {
-                "mail_address": (attrs.get("OwnerStreet","") or "").strip(),
-                "mail_city":    (attrs.get("OwnerCity","") or "").strip(),
-                "mail_state":   (attrs.get("OwnerState","") or "SC").strip(),
-                "mail_zip":     (attrs.get("OwnerZip","") or "").strip(),
-                "tms":          tms,
-                "prop_address": "", "prop_city": "", "prop_state": "SC", "prop_zip": "",
-            }
-            if tms:
-                site = self._query_site_address(tms)
-                if site:
-                    result.update(site)
-            return result
-        except Exception as e:
-            log.debug("GIS name lookup error: %s", e)
-            return None
-
-    def _query_parcels_by_tms(self, tms: str) -> Optional[dict]:
-        safe_tms = tms.replace("'","''")
-        try:
-            resp = self.session.get(PARCELS_URL, params={
-                "where": f"TMS = '{safe_tms}'",
-                "outFields": "OwnerName,OwnerStreet,OwnerCity,OwnerState,OwnerZip,TMS",
-                "returnGeometry": "false", "f": "json",
-            }, timeout=10)
-            features = resp.json().get("features", [])
-            if not features:
-                return None
-            attrs = features[0]["attributes"]
-            return {
-                "mail_address": (attrs.get("OwnerStreet","") or "").strip(),
-                "mail_city":    (attrs.get("OwnerCity","") or "").strip(),
-                "mail_state":   (attrs.get("OwnerState","") or "SC").strip(),
-                "mail_zip":     (attrs.get("OwnerZip","") or "").strip(),
-                "tms":          tms,
-                "prop_address": "", "prop_city": "", "prop_state": "SC", "prop_zip": "",
-            }
-        except Exception as e:
-            log.debug("GIS TMS parcel lookup error: %s", e)
-            return None
-
-    def _query_site_address(self, tms: str) -> Optional[dict]:
-        safe_tms = tms.replace("'","''")
-        try:
-            resp = self.session.get(ADDRESS_URL, params={
-                "where": f"TMS = '{safe_tms}'",
-                "outFields": "ADDRESS,CITY,STATE,ZIPCODE",
-                "returnGeometry": "false", "f": "json",
-            }, timeout=10)
-            features = resp.json().get("features", [])
-            if not features:
-                return None
-            attrs = features[0]["attributes"]
-            return {
-                "prop_address": (attrs.get("ADDRESS","") or "").strip(),
-                "prop_city":    (attrs.get("CITY","") or "").strip(),
-                "prop_state":   (attrs.get("STATE","SC") or "SC").strip(),
-                "prop_zip":     str(attrs.get("ZIPCODE","") or "").strip(),
-            }
-        except Exception as e:
-            log.debug("GIS site address error: %s", e)
-            return None
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Delinquent Tax Cross-Reference (GIS Portal — LP owners who also owe taxes)
-# ══════════════════════════════════════════════════════════════════════════════
-
-def lookup_delinquent_tax_by_name(owner_name: str, session: requests.Session) -> Optional[dict]:
-    """Check if an LP owner also appears on the delinquent tax list."""
-    if not owner_name:
-        return None
-    safe = owner_name.strip().replace("'","''").upper()
-    try:
-        r = session.get(DELQ_TAX_URL, params={
-            "where": f"owner_name LIKE '%{safe}%'",
-            "outFields": "owner_name,total_tax_due,tms,description",
-            "returnGeometry": "false", "f": "json",
-        }, timeout=10)
-        features = r.json().get("features", [])
-        if not features:
-            return None
-        attrs = features[0]["attributes"]
-        return {
-            "delinquent_tax": attrs.get("total_tax_due",""),
-            "delinquent_tms": attrs.get("tms",""),
-        }
-    except Exception:
-        return None
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Acclaim CSV Parser
-# ══════════════════════════════════════════════════════════════════════════════
-
-def extract_tms_from_legal(legal: str) -> str:
-    """
-    Extract a Horry County TMS parcel number from AcclaimWeb legal description.
-    TMS format: XXXXXXXXXX (10 digits, sometimes with dashes: XXX-XX-XX-XXXX)
-    """
-    if not legal:
-        return ""
-    # Try dashed format first: 123-45-67-8901 or 1234567890
-    for pattern in [
-        r'\b(\d{3}-\d{2}-\d{2}-\d{4})\b',  # 123-45-67-8901
-        r'\b(\d{10})\b',                     # 1234567890
-        r'\b(\d{9})\b',                      # 123456789 (some older)
-    ]:
-        m = re.search(pattern, legal)
-        if m:
-            return m.group(1).replace("-","")
-    return ""
-
-
-def extract_address_from_legal(legal: str) -> str:
-    """
-    Extract a street address from AcclaimWeb legal description / comments.
-    Many LP records include the property address in comments.
-    """
-    if not legal:
-        return ""
-    text = legal.upper()
-    patterns = [
-        r'\b(\d+\s+[A-Z][A-Z\s]+(?:ST|AVE|RD|DR|LN|WAY|BLVD|CT|CIR|HWY|LOOP|TRL|PL|PKY|PKWY)[A-Z\s]*\d{5}?)\b',
-        r'\b(\d+\s+[A-Z][A-Z\s]{3,30}(?:STREET|AVENUE|ROAD|DRIVE|LANE|WAY|BOULEVARD|COURT|CIRCLE|HIGHWAY))',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, text)
-        if match:
-            return match.group(1).strip().title()
-    return ""
-
-
-def parse_acclaim_csv(raw: str) -> list:
-    records = []
-    try:
-        raw    = raw.lstrip('\ufeff')
-        reader = csv.DictReader(io.StringIO(raw))
-        log.info("CSV columns: %s", reader.fieldnames)
-        rows = list(reader)
-        log.info("CSV total rows: %d", len(rows))
-
-        for row in rows:
-            try:
-                description = (row.get("DocTypeDescription","") or "").strip()
-                comments    = (row.get("Comments","") or "").strip()
-                classified  = classify_doc(description) or classify_doc(comments)
-                if not classified:
-                    continue
-
-                cat, cat_label = classified
-                book_page = (row.get("BookPage","") or "").strip()
-                owner     = (row.get("DirectName","") or "").strip()
-                grantee   = (row.get("IndirectName","") or "").strip()
-                amount    = parse_amount(row.get("Consideration",""))
-                filed_raw = (row.get("RecordDate","") or "").strip()
-                legal     = comments
-
-                clerk_url = (
-                    f"{ACCLAIM_BASE}/search/SearchTypeName"
-                    f"?directName={owner.replace(' ','%20')}"
-                    if owner else DOCTYPE_URL
-                )
-
-                # Try to extract TMS and address from legal description
-                tms_from_legal  = extract_tms_from_legal(legal)
-                addr_from_legal = extract_address_from_legal(legal)
-
-                records.append({
-                    "doc_num":        book_page,
-                    "doc_type":       cat,
-                    "filed":          normalize_date(filed_raw),
-                    "cat":            cat,
-                    "cat_label":      cat_label,
-                    "owner":          owner,
-                    "grantee":        grantee,
-                    "amount":         amount,
-                    "legal":          legal,
-                    "tms_legal":      tms_from_legal,   # TMS from legal text
-                    "addr_legal":     addr_from_legal,  # address from legal text
-                    "clerk_url":      clerk_url,
-                    "source":         "Register of Deeds",
-                    "prop_address":   addr_from_legal,  # Pre-fill from legal
-                    "prop_city":      "", "prop_state": "SC", "prop_zip": "",
-                    "mail_address":   "", "mail_city": "", "mail_state": "SC", "mail_zip": "",
-                    "delinquent_tax": "",  # cross-ref with delinquent tax list
-                })
-            except Exception as e:
-                log.debug("Row error: %s", e)
-
-    except Exception as e:
-        log.error("CSV parse error: %s", e)
-
-    log.info("Classified %d Acclaim records", len(records))
-    return records
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Acclaim Scraper (unchanged — requires HORRY_USERNAME/HORRY_PASSWORD secrets)
-# ══════════════════════════════════════════════════════════════════════════════
-
-async def run_acclaim(page: Page) -> list:
-    start_date, end_date = date_range_str()
-    log.info("Acclaim: %s to %s", start_date, end_date)
-
-    await page.goto(ACCLAIM_BASE + "/", wait_until="domcontentloaded", timeout=20000)
-    await asyncio.sleep(2)
-    content = await page.content()
-    if "disclaimer" in content.lower() or "accept" in content.lower():
-        for sel in ["input[type='submit']", "input[value*='Accept' i]"]:
-            try:
-                el = page.locator(sel).first
-                if await el.count() > 0:
-                    await el.click()
-                    await page.wait_for_load_state("domcontentloaded", timeout=10000)
-                    await asyncio.sleep(1)
-                    log.info("Disclaimer accepted")
-                    break
-            except Exception:
-                pass
-
-    await page.goto(DOCTYPE_URL, wait_until="networkidle", timeout=30000)
-    await asyncio.sleep(3)
-
-    await page.evaluate("""
-        () => {
-            const sel = document.querySelector(
-                '#DocTypeGroupDropDown,[name="DocTypeGroupDropDown"],select'
-            );
-            if (sel) {
-                for (let opt of sel.options) {
-                    if (opt.text.trim() === 'All') {
-                        sel.value = opt.value;
-                        sel.dispatchEvent(new Event('change',{bubbles:true}));
-                        return 'All selected';
-                    }
-                }
-            }
-        }
-    """)
-    await asyncio.sleep(2)
-
-    await page.evaluate(f"""
-        () => {{
-            const dropdowns = document.querySelectorAll('select');
-            for (let dd of dropdowns) {{
-                for (let opt of dd.options) {{
-                    if (opt.text.includes('Specify') || opt.text.includes('Range')) {{
-                        dd.value = opt.value;
-                        dd.dispatchEvent(new Event('change',{{bubbles:true}}));
-                        break;
-                    }}
-                }}
-            }}
-            const from = document.querySelector('#RecordDateFrom,[name="RecordDateFrom"]');
-            if (from) {{
-                from.value = '{start_date}';
-                from.dispatchEvent(new Event('change',{{bubbles:true}}));
-                from.dispatchEvent(new Event('input',{{bubbles:true}}));
-            }}
-            const to = document.querySelector('#RecordDateTo,[name="RecordDateTo"]');
-            if (to) {{
-                to.value = '{end_date}';
-                to.dispatchEvent(new Event('change',{{bubbles:true}}));
-                to.dispatchEvent(new Event('input',{{bubbles:true}}));
-            }}
-        }}
-    """)
-    await asyncio.sleep(1)
-
-    for sel in ["#Checkbox1", "[name='SelectAllDocTypesToggle']"]:
-        try:
-            el = page.locator(sel).first
-            if await el.count() > 0:
-                await el.check()
-                await asyncio.sleep(1)
-                log.info("SelectAll checked")
-                break
-        except Exception:
-            pass
-
-    for sel in ["#btnSearch", "input[value='Search']", "input[type='submit']"]:
-        try:
-            el = page.locator(sel).first
-            if await el.count() > 0:
-                await el.click()
-                await page.wait_for_load_state("networkidle", timeout=30000)
-                log.info("Search submitted")
-                break
-        except Exception:
-            pass
-
-    log.info("Waiting for Export to CSV button...")
-    for attempt in range(15):
-        for sel in [
-            "input[value='Export to CSV']", "input[value*='Export']",
-            "button:has-text('Export to CSV')", "button:has-text('Export')",
-            "a:has-text('Export to CSV')", "a:has-text('Export')",
-        ]:
-            try:
-                el = page.locator(sel).first
-                if await el.count() > 0:
-                    log.info("✓ Export found (attempt %d): %s", attempt+1, sel)
-                    async with page.expect_download(timeout=30000) as dl_info:
-                        await el.click()
-                    download = await dl_info.value
-                    path = await download.path()
-                    if path:
-                        with open(path,"r",encoding="utf-8-sig",errors="ignore") as f:
-                            content = f.read()
-                        log.info("✓ CSV: %d chars", len(content))
-                        return parse_acclaim_csv(content)
-            except Exception as e:
-                log.debug("Export attempt %d %s: %s", attempt+1, sel, e)
-        await asyncio.sleep(2)
-
-    log.warning("Could not export CSV from Acclaim")
-    return []
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Main
-# ══════════════════════════════════════════════════════════════════════════════
-
-async def main():
-    log.info("="*60)
-    log.info("Horry County Lead Scraper — v3 (no code violations; newest+score sort)")
-    log.info("="*60)
-
-    all_records = []
-
-    # ── Step 1: Acclaim ───────────────────────────────────────────────────
-    log.info("STEP 1: Acclaim Register of Deeds")
-    if PLAYWRIGHT_AVAILABLE:
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
-                headless=True, args=["--no-sandbox","--disable-dev-shm-usage"]
-            )
-            context = await browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-                viewport={"width": 1280, "height": 1024},
-                accept_downloads=True,
-            )
-            page = await context.new_page()
-            page.set_default_timeout(20000)
-            try:
-                acclaim_records = await run_acclaim(page)
-                all_records.extend(acclaim_records)
-                log.info("Acclaim records: %d", len(acclaim_records))
-            except Exception as e:
-                log.error("Acclaim error: %s", e, exc_info=True)
-            finally:
-                await browser.close()
-    else:
-        log.error("Playwright not available")
-
-    # ── Step 2: Enhanced GIS Address Lookup ───────────────────────────────
-    log.info("STEP 2: Enhanced GIS Address Lookup (name + TMS)")
-    gis     = GISLookup()
-    session = gis.session
-
-    # Collect all names + TMS numbers to look up
-    names_to_lookup = set()
-    for r in all_records:
-        owner   = r.get("owner","").strip()
-        grantee = r.get("grantee","").strip()
-        cat     = r.get("cat","")
-        cat_lbl = r.get("cat_label","").upper()
-
-        if owner:   names_to_lookup.add(owner)
-        if grantee and (
-            "HOA" in cat_lbl or "CONDO" in cat_lbl or "MECHANIC" in cat_lbl or
-            cat in ("LN","PRO","NOFC","LP")
-        ):
-            names_to_lookup.add(grantee)
-
-    log.info("Looking up %d unique names...", len(names_to_lookup))
-    addr_cache = {}
-    for name in names_to_lookup:
-        addr = gis.lookup_by_name(name)
-        addr_cache[name] = addr
-        time.sleep(0.1)
-
-    # Apply addresses with TMS fallback for LP records
-    enriched_by_name = enriched_by_tms = 0
-    for r in all_records:
-        owner   = r.get("owner","").strip()
-        grantee = r.get("grantee","").strip()
-        cat     = r.get("cat","")
-        cat_lbl = r.get("cat_label","").upper()
-
-        use_grantee = (
-            "HOA" in cat_lbl or "CONDO" in cat_lbl or "MECHANIC" in cat_lbl or
-            "CHILD SUPPORT" in cat_lbl or cat in ("PRO","NOFC","LP")
-        )
-        contact = grantee if (use_grantee and grantee) else owner
-
-        addr_data = addr_cache.get(contact)
-        if not addr_data and contact != owner:
-            addr_data = addr_cache.get(owner)
-
-        # ── TMS fallback for LP records ──────────────────────────────────
-        if not addr_data and cat == "LP":
-            tms = r.get("tms_legal","")
-            if tms:
-                log.debug("LP: trying TMS lookup %s for %s", tms, owner[:25])
-                addr_data = gis.lookup_by_tms(tms)
-                if addr_data:
-                    enriched_by_tms += 1
-                    log.info("LP TMS hit: %s → %s", tms, addr_data.get("prop_address","")[:30])
-
-        if addr_data:
-            # Only overwrite prop_address if GIS gives something better
-            if addr_data.get("prop_address","").strip():
-                r["prop_address"] = addr_data["prop_address"]
-                r["prop_city"]    = addr_data.get("prop_city","")
-                r["prop_state"]   = addr_data.get("prop_state","SC")
-                r["prop_zip"]     = addr_data.get("prop_zip","")
-            r["mail_address"] = addr_data.get("mail_address","")
-            r["mail_city"]    = addr_data.get("mail_city","")
-            r["mail_state"]   = addr_data.get("mail_state","SC")
-            r["mail_zip"]     = addr_data.get("mail_zip","")
-            r["tms"]          = addr_data.get("tms","") or r.get("tms_legal","")
-            enriched_by_name += 1
-
-        # Swap owner/grantee display for lien types
-        if use_grantee and grantee:
-            r["owner"]   = grantee
-            r["grantee"] = owner
-
-    log.info("Enriched — by name: %d | by TMS: %d", enriched_by_name, enriched_by_tms)
-
-    # ── Step 2b: Delinquent Tax Cross-Reference ───────────────────────────
-    log.info("STEP 2b: Delinquent Tax Cross-Reference")
-    for r in all_records:
-        if r.get("cat") == "LP":
-            owner = r.get("owner","").strip()
-            dt = lookup_delinquent_tax_by_name(owner, session)
-            if dt:
-                r["delinquent_tax"] = dt.get("delinquent_tax","")
-                if not r.get("tms",""):
-                    r["tms"] = dt.get("delinquent_tms","")
-                r.setdefault("flags", [])
-                if "Also delinquent taxes" not in r["flags"]:
-                    r["flags"].append("Also delinquent taxes")
-                log.info("Tax cross-ref hit: %s owes $%s", owner[:25], dt.get("delinquent_tax",""))
-        time.sleep(0.05)
-
-    # ── Step 3: Deduplicate + Score ───────────────────────────────────────
-    seen, unique = set(), []
-    for r in all_records:
-        key = (r.get("doc_num",""), r.get("cat",""), r.get("owner",""))
-        if key not in seen:
-            seen.add(key)
-            unique.append(r)
-    log.info("Unique records: %d", len(unique))
-
-    for r in unique:
-        flags     = r.get("flags", []) + compute_flags(r)
-        flags     = list(dict.fromkeys(flags))
-        r["flags"] = flags
-        r["score"] = compute_score(r, flags)
-
-    # Sort: NEWEST FILED FIRST, then HIGHEST SCORE within the same day.
-    # filed is normalized to YYYY-MM-DD, so reverse=True orders dates newest-first
-    # and breaks ties by score high-to-low.
-    unique.sort(key=lambda r: (r.get("filed",""), r.get("score",0)), reverse=True)
-
-    # ── Reliability guard: never overwrite good data with an empty scrape ──
-    if not unique:
-        log.error("Scrape produced 0 records — likely an AcclaimWeb/export failure.")
-        log.error("Preserving existing records.json and failing the run.")
-        sys.exit(1)
-
-    # ── Step 4: Save ──────────────────────────────────────────────────────
-    start_date, end_date = date_range_str()
-    repo = Path(__file__).parent.parent
-
-    payload = {
-        "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS (v3)",
-        "date_range":   {"start": start_date, "end": end_date},
-        "total":        len(unique),
-        "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
-        "records":      unique,
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horry County Motivated Seller Leads</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  font-size: 14px;
+  background: #f5f5f5;
+  color: #1a1a1a;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  background: #1e3a8a;
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.topbar-title { font-size: 18px; font-weight: 700; }
+.topbar-sub { font-size: 11px; opacity: .7; margin-top: 1px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.updated { font-size: 11px; opacity: .8; }
+.btn-export {
+  background: white;
+  color: #1e3a8a;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.btn-export:hover { background: #e0e7ff; }
+
+/* ── STATS ── */
+.stats {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid #ddd;
+  overflow-x: auto;
+}
+.stat {
+  flex: 1;
+  min-width: 100px;
+  padding: 14px 16px;
+  border-right: 1px solid #eee;
+  text-align: center;
+}
+.stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+.blue { color: #1e3a8a; }
+.green { color: #059669; }
+.amber { color: #d97706; }
+.red { color: #dc2626; }
+.black { color: #111; }
+
+/* ── BODY LAYOUT ── */
+.body-layout {
+  display: flex;
+  min-height: calc(100vh - 140px);
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 200px;
+  min-width: 200px;
+  background: white;
+  border-right: 1px solid #ddd;
+  padding: 16px 12px;
+  overflow-y: auto;
+}
+.sidebar-section { margin-bottom: 20px; }
+.sidebar-heading {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #999;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #eee;
+}
+.filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 8px;
+  margin-bottom: 2px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #555;
+  text-align: left;
+}
+.filter-btn:hover { background: #f0f4ff; color: #1e3a8a; }
+.filter-btn.active { background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; font-weight: 600; }
+.filter-btn span.cnt {
+  background: #f0f0f0;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: #888;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.filter-btn.active span.cnt { background: #dbeafe; color: #1e3a8a; }
+.filter-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── MAIN CONTENT ── */
+.main-content { flex: 1; overflow: hidden; }
+
+/* ── SEARCH BAR ── */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+}
+.search-bar input {
+  flex: 1;
+  padding: 7px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+.search-bar input:focus { border-color: #1e3a8a; }
+.search-bar select {
+  padding: 7px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  background: white;
+}
+.rec-count { font-size: 11px; color: #888; white-space: nowrap; }
+
+/* ── TABLE WRAPPER ── */
+.table-wrapper { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 800px;
+}
+
+/* HEADER ROW - NOT STICKY */
+table thead tr {
+  background: #f0f0f0;
+  border-bottom: 2px solid #ccc;
+}
+table thead th {
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* DATA ROWS */
+table tbody tr {
+  border-bottom: 1px solid #eee;
+  background: white;
+  cursor: pointer;
+}
+table tbody tr:hover { background: #f0f4ff; }
+table tbody tr:nth-child(even) { background: #fafafa; }
+table tbody tr:nth-child(even):hover { background: #f0f4ff; }
+
+table td {
+  padding: 9px 12px;
+  vertical-align: middle;
+}
+
+/* ── SCORE BADGE ── */
+.score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 24px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid;
+}
+.score-hi { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.score-md { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.score-lo { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+
+/* ── TYPE BADGE ── */
+.type-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.t-LP     { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.t-NOFC   { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+.t-TAXDEED{ background: #fef9c3; color: #854d0e; border-color: #fde047; }
+.t-JUD    { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+.t-LN     { background: #e0f2fe; color: #0c4a6e; border-color: #7dd3fc; }
+.t-PRO    { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }
+.t-NOC    { background: #d1fae5; color: #064e3b; border-color: #6ee7b7; }
+.t-RELLP  { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+.t-MISC   { background: #f9fafb; color: #6b7280; border-color: #e5e7eb; }
+
+/* ── FLAG CHIPS ── */
+.flags { display: flex; flex-wrap: wrap; gap: 3px; }
+.flag {
+  font-size: 9px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  white-space: nowrap;
+}
+.flag.hot { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+/* ── AMOUNT ── */
+.amt { font-weight: 600; color: #d97706; font-size: 12px; white-space: nowrap; }
+.amt.big { color: #dc2626; }
+
+/* ── VIEW LINK ── */
+a.view-link {
+  color: #1e3a8a;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+a.view-link:hover { text-decoration: underline; }
+
+/* ── EMPTY STATE ── */
+.empty {
+  padding: 60px;
+  text-align: center;
+  color: #999;
+}
+.empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #555; }
+
+/* ── MODAL ── */
+.modal-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: white;
+  border-radius: 8px;
+  width: min(640px, 94vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.modal-head {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modal-title { font-size: 18px; font-weight: 700; }
+.modal-close {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.modal-close:hover { background: #e0e0e0; }
+.modal-body {
+  padding: 18px 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 24px;
+}
+.modal-field { display: flex; flex-direction: column; gap: 3px; }
+.modal-field.full { grid-column: 1 / -1; }
+.modal-field label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: #999;
+}
+.modal-field .val { font-size: 14px; color: #1a1a1a; word-break: break-word; }
+.modal-field .val.mono { font-family: monospace; font-size: 12px; }
+.score-bar { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
+.score-bar-bg { flex: 1; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 4px; }
+.modal-foot {
+  padding: 14px 22px;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: #fafafa;
+  border-radius: 0 0 8px 8px;
+}
+.btn-sec {
+  padding: 8px 14px;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+}
+.btn-sec:hover { border-color: #1e3a8a; color: #1e3a8a; background: #eff6ff; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div>
+    <div class="topbar-title">🏚 Horry County Leads</div>
+    <div class="topbar-sub">MOTIVATED SELLER INTELLIGENCE</div>
+  </div>
+  <div class="topbar-right">
+    <span class="updated" id="updated">Loading…</span>
+    <button class="btn-export" onclick="exportCSV()">⬇ Export GHL CSV</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat"><div class="stat-label">Total Leads</div><div class="stat-value blue" id="sTotal">—</div></div>
+  <div class="stat"><div class="stat-label">With Address</div><div class="stat-value green" id="sAddr">—</div></div>
+  <div class="stat"><div class="stat-label">High Score 70+</div><div class="stat-value amber" id="sHigh">—</div></div>
+  <div class="stat"><div class="stat-label">Pre-Foreclosure</div><div class="stat-value red" id="sFC">—</div></div>
+  <div class="stat"><div class="stat-label">Lis Pendens</div><div class="stat-value red" id="sLP">—</div></div>
+  <div class="stat"><div class="stat-label">Judgments</div><div class="stat-value black" id="sJUD">—</div></div>
+  <div class="stat"><div class="stat-label">Liens</div><div class="stat-value black" id="sLN">—</div></div>
+  <div class="stat"><div class="stat-label">Probate</div><div class="stat-value blue" id="sProb">—</div></div>
+  <div class="stat"><div class="stat-label">Avg Score</div><div class="stat-value blue" id="sAvg">—</div></div>
+</div>
+
+<!-- BODY -->
+<div class="body-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Lead Type</div>
+      <div id="typeFilters"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Score</div>
+      <button class="filter-btn active" data-score="all" onclick="setScore(this,'all')"><span class="filter-label">All Scores</span></button>
+      <button class="filter-btn" data-score="high" onclick="setScore(this,'high')"><span class="filter-label">🔥 High 70–100</span></button>
+      <button class="filter-btn" data-score="mid" onclick="setScore(this,'mid')"><span class="filter-label">⚡ Mid 50–69</span></button>
+      <button class="filter-btn" data-score="low" onclick="setScore(this,'low')"><span class="filter-label">◌ Low &lt;50</span></button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Flags</div>
+      <button class="filter-btn active" data-flag="all" onclick="setFlag(this,'all')"><span class="filter-label">All Flags</span></button>
+      <button class="filter-btn" data-flag="Lis pendens" onclick="setFlag(this,'Lis pendens')"><span class="filter-label">Lis Pendens</span></button>
+      <button class="filter-btn" data-flag="Pre-foreclosure" onclick="setFlag(this,'Pre-foreclosure')"><span class="filter-label">Pre-Foreclosure</span></button>
+      <button class="filter-btn" data-flag="Judgment lien" onclick="setFlag(this,'Judgment lien')"><span class="filter-label">Judgment Lien</span></button>
+      <button class="filter-btn" data-flag="Tax lien" onclick="setFlag(this,'Tax lien')"><span class="filter-label">Tax Lien</span></button>
+      <button class="filter-btn" data-flag="Mechanic lien" onclick="setFlag(this,'Mechanic lien')"><span class="filter-label">Mechanic Lien</span></button>
+      <button class="filter-btn" data-flag="HOA lien" onclick="setFlag(this,'HOA lien')"><span class="filter-label">HOA / Condo Lien</span></button>
+      <button class="filter-btn" data-flag="Probate / estate" onclick="setFlag(this,'Probate / estate')"><span class="filter-label">Probate / Estate</span></button>
+      <button class="filter-btn" data-flag="LLC / corp owner" onclick="setFlag(this,'LLC / corp owner')"><span class="filter-label">LLC / Corp Owner</span></button>
+      <button class="filter-btn" data-flag="New this week" onclick="setFlag(this,'New this week')"><span class="filter-label">New This Week</span></button>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-content">
+
+    <!-- SEARCH BAR -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search owner, document number, legal description…" oninput="applyFilters()">
+      <select id="sortSel" onchange="applyFilters()">
+        <option value="date_score">Newest First · Best Score on Top</option>
+        <option value="score_desc">Score — High to Low</option>
+        <option value="score_asc">Score — Low to High</option>
+        <option value="date_desc">Date — Newest First</option>
+        <option value="date_asc">Date — Oldest First</option>
+        <option value="amount_desc">Amount — Largest First</option>
+        <option value="owner_asc">Owner — A to Z</option>
+      </select>
+      <span class="rec-count" id="recCount"></span>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrapper">
+      <div id="tableArea"><div class="empty"><div class="empty-title">Loading leads…</div></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="mTitle">—</div>
+        <div id="mBadge" style="margin-top:6px"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕ Close</button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+    <div class="modal-foot" id="mFoot"></div>
+  </div>
+</div>
+
+<script>
+let ALL = [], filtered = [];
+let activeType = 'all', activeScore = 'all', activeFlag = 'all';
+
+const CAT_LABELS = {
+  LP:'Lis Pendens', NOFC:'Notice of Foreclosure', TAXDEED:'Tax Deed',
+  JUD:'Judgment', LN:'Lien', PRO:'Probate', NOC:'Notice of Comm.',
+  RELLP:'Release LP'
+};
+const TYPE_ORDER = ['LP','NOFC','TAXDEED','JUD','LN','PRO','NOC','RELLP'];
+
+async function loadData() {
+  try {
+    const r = await fetch('records.json?v=' + Date.now());
+    const d = await r.json();
+    if (d.fetched_at) {
+      const dt = new Date(d.fetched_at);
+      document.getElementById('updated').textContent =
+        'Updated ' + dt.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
     }
-    for path in [repo/"dashboard"/"records.json", repo/"data"/"records.json"]:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, default=str)
-        log.info("Saved → %s", path)
+    ALL = (d.records||[]).map((r,i) => ({...r, _id:i}));
+    updateStats();
+    buildTypeFilters();
+    applyFilters();
+  } catch(e) {
+    document.getElementById('tableArea').innerHTML =
+      `<div class="empty"><div class="empty-title">Could not load records.json</div><div style="color:#999;margin-top:6px;font-size:12px">${e.message}</div></div>`;
+  }
+}
 
-    fieldnames = [
-        "First Name","Last Name","Mailing Address","Mailing City",
-        "Mailing State","Mailing Zip","Property Address","Property City",
-        "Property State","Property Zip","Lead Type","Document Type",
-        "Date Filed","Document Number","Amount/Debt Owed","TMS Parcel",
-        "Delinquent Tax","Seller Score","Motivated Seller Flags",
-        "Source","Public Records URL",
-    ]
-    csv_path = repo/"data"/"leads_export.csv"
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        for r in unique:
-            owner = r.get("owner","")
-            parts = owner.split(" ",1) if owner else ["",""]
-            writer.writerow({
-                "First Name":            parts[0],
-                "Last Name":             parts[1] if len(parts)>1 else "",
-                "Mailing Address":       r.get("mail_address",""),
-                "Mailing City":          r.get("mail_city",""),
-                "Mailing State":         r.get("mail_state","SC"),
-                "Mailing Zip":           r.get("mail_zip",""),
-                "Property Address":      r.get("prop_address",""),
-                "Property City":         r.get("prop_city",""),
-                "Property State":        r.get("prop_state","SC"),
-                "Property Zip":          r.get("prop_zip",""),
-                "Lead Type":             r.get("cat_label",""),
-                "Document Type":         r.get("cat",""),
-                "Date Filed":            r.get("filed",""),
-                "Document Number":       r.get("doc_num",""),
-                "Amount/Debt Owed":      r.get("amount",""),
-                "TMS Parcel":            r.get("tms",""),
-                "Delinquent Tax":        r.get("delinquent_tax",""),
-                "Seller Score":          r.get("score",""),
-                "Motivated Seller Flags": "; ".join(r.get("flags",[])),
-                "Source":                r.get("source","Horry County"),
-                "Public Records URL":    r.get("clerk_url",""),
-            })
-    log.info("GHL CSV → %s (%d rows)", csv_path, len(unique))
+function updateStats() {
+  document.getElementById('sTotal').textContent = ALL.length;
+  document.getElementById('sAddr').textContent  = ALL.filter(r=>r.prop_address).length;
+  document.getElementById('sHigh').textContent  = ALL.filter(r=>r.score>=70).length;
+  document.getElementById('sFC').textContent    = ALL.filter(r=>r.cat==='NOFC').length;
+  document.getElementById('sLP').textContent    = ALL.filter(r=>r.cat==='LP').length;
+  document.getElementById('sJUD').textContent   = ALL.filter(r=>r.cat==='JUD').length;
+  document.getElementById('sLN').textContent    = ALL.filter(r=>r.cat==='LN').length;
+  document.getElementById('sProb').textContent  = ALL.filter(r=>r.cat==='PRO').length;
+  const avg = ALL.length ? Math.round(ALL.reduce((s,r)=>s+(r.score||0),0)/ALL.length) : 0;
+  document.getElementById('sAvg').textContent   = avg;
+}
 
-    with_addr = sum(1 for r in unique if r.get("prop_address","").strip())
-    log.info("="*60)
-    log.info("DONE — Total: %d | With Address: %d | Avg Score: %.0f",
-             len(unique), with_addr,
-             sum(r.get("score",0) for r in unique)/len(unique) if unique else 0)
-    log.info("="*60)
+function buildTypeFilters() {
+  const counts = {};
+  ALL.forEach(r => { counts[r.cat] = (counts[r.cat]||0)+1; });
+  let html = `<button class="filter-btn active" data-cat="all" onclick="setType(this,'all')">
+    <span class="filter-label">All Types</span><span class="cnt">${ALL.length}</span></button>`;
+  TYPE_ORDER.filter(c=>counts[c]).forEach(c => {
+    html += `<button class="filter-btn" data-cat="${c}" onclick="setType(this,'${c}')">
+      <span class="filter-label">${CAT_LABELS[c]||c}</span><span class="cnt">${counts[c]}</span></button>`;
+  });
+  document.getElementById('typeFilters').innerHTML = html;
+}
 
+function setType(btn, val) {
+  document.querySelectorAll('[data-cat]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeType=val; applyFilters();
+}
+function setScore(btn, val) {
+  document.querySelectorAll('[data-score]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeScore=val; applyFilters();
+}
+function setFlag(btn, val) {
+  document.querySelectorAll('[data-flag]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeFlag=val; applyFilters();
+}
 
-if __name__ == "__main__":
-    asyncio.run(main())
+function applyFilters() {
+  const q    = document.getElementById('searchInput').value.toLowerCase().trim();
+  const sort = document.getElementById('sortSel').value;
+
+  filtered = ALL.filter(r => {
+    if (activeType!=='all' && r.cat!==activeType) return false;
+    if (activeScore==='high' && r.score<70) return false;
+    if (activeScore==='mid'  && (r.score<50||r.score>=70)) return false;
+    if (activeScore==='low'  && r.score>=50) return false;
+    if (activeFlag!=='all'   && !(r.flags||[]).includes(activeFlag)) return false;
+    if (q) {
+      const hay = [r.owner,r.grantee,r.doc_num,r.legal,r.cat_label]
+        .join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    switch(sort) {
+      case 'date_score': return (b.filed||'').localeCompare(a.filed||'') || (b.score||0)-(a.score||0);
+      case 'score_desc': return (b.score||0)-(a.score||0);
+      case 'score_asc':  return (a.score||0)-(b.score||0);
+      case 'date_desc':  return (b.filed||'').localeCompare(a.filed||'');
+      case 'date_asc':   return (a.filed||'').localeCompare(b.filed||'');
+      case 'amount_desc':return (b.amount||0)-(a.amount||0);
+      case 'owner_asc':  return (a.owner||'').localeCompare(b.owner||'');
+    }
+    return 0;
+  });
+
+  document.getElementById('recCount').textContent = `${filtered.length} of ${ALL.length} records`;
+  renderTable();
+}
+
+function renderTable() {
+  const el = document.getElementById('tableArea');
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty">
+      <div class="empty-title">No leads match your filters</div>
+      <div style="color:#999;margin-top:6px">Try adjusting the filters on the left</div>
+    </div>`;
+    return;
+  }
+
+  const rows = filtered.map(r => {
+    const sc  = r.score>=70?'score-hi':r.score>=50?'score-md':'score-lo';
+    const tc  = 't-'+(r.cat||'MISC');
+    const amt = r.amount ? '$'+r.amount.toLocaleString('en-US',{minimumFractionDigits:0}) : '—';
+    const amtCls = r.amount>100000 ? 'amt big' : 'amt';
+    const flags = (r.flags||[]).slice(0,3).map(f => {
+      const hot = ['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien'].includes(f);
+      return `<span class="flag${hot?' hot':''}">${f}</span>`;
+    }).join('');
+    const viewUrl = r.owner
+      ? `https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=${encodeURIComponent(r.owner)}`
+      : '';
+
+    return `<tr onclick="openModal(${r._id})">
+      <td><span class="score ${sc}">${r.score||0}</span></td>
+      <td><span class="type-badge ${tc}">${x(r.cat_label||r.cat||'?')}</span></td>
+      <td style="font-family:monospace;font-size:11px;color:#666;white-space:nowrap">${x(r.filed||'—')}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500" title="${x(r.owner||'')}">${x(r.owner||'—')}</td>
+      <td><span class="${amtCls}">${amt}</span></td>
+      <td><div class="flags">${flags}</div></td>
+      <td>${viewUrl?`<a class="view-link" href="${viewUrl}" target="_blank" onclick="event.stopPropagation()">View ↗</a>`:'—'}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:52px">Score</th>
+          <th style="width:130px">Lead Type</th>
+          <th style="width:100px">Filed Date</th>
+          <th>Owner / Grantor</th>
+          <th style="width:90px">Amount</th>
+          <th>Flags</th>
+          <th style="width:65px">Document</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+function openModal(id) {
+  const r = ALL.find(a=>a._id===id);
+  if (!r) return;
+
+  const scoreColor = r.score>=70?'#059669':r.score>=50?'#d97706':'#9ca3af';
+  const tc = 't-'+(r.cat||'MISC');
+  const amt = r.amount ? '$'+r.amount.toLocaleString('en-US') : '—';
+  const flags = (r.flags||[]).map(f => {
+    const hot = ['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien'].includes(f);
+    return `<span class="flag${hot?' hot':''}">${f}</span>`;
+  }).join('');
+
+  document.getElementById('mTitle').textContent = r.owner||'Unknown Owner';
+  document.getElementById('mBadge').innerHTML =
+    `<span class="type-badge ${tc}">${x(r.cat_label||r.cat||'')}</span>`;
+
+  document.getElementById('mBody').innerHTML = `
+    <div class="modal-field full">
+      <label>Seller Score</label>
+      <div class="score-bar">
+        <span style="font-size:18px;font-weight:700;color:${scoreColor};min-width:30px">${r.score||0}</span>
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" style="width:${Math.min(100,r.score||0)}%;background:${scoreColor}"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label>Document Number (Book/Page)</label>
+      <div class="val mono">${x(r.doc_num||'—')}</div>
+    </div>
+    <div class="modal-field">
+      <label>Filed Date</label>
+      <div class="val mono">${x(r.filed||'—')}</div>
+    </div>
+    <div class="modal-field">
+      <label>Grantor / Owner</label>
+      <div class="val" style="font-weight:600">${x(r.owner||'—')}</div>
+    </div>
+    <div class="modal-field">
+      <label>Grantee</label>
+      <div class="val">${x(r.grantee||'—')}</div>
+    </div>
+    <div class="modal-field">
+      <label>Amount / Debt Owed</label>
+      <div class="val" style="font-size:18px;font-weight:700;color:#d97706">${amt}</div>
+    </div>
+    <div class="modal-field">
+      <label>Lead Type</label>
+      <div class="val">${x(r.cat_label||r.cat||'—')}</div>
+    </div>
+    <div class="modal-field full">
+      <label>Legal Description / Comments</label>
+      <div class="val mono" style="font-size:11px;color:#555">${x(r.legal||'—')}</div>
+    </div>
+    <div class="modal-field full">
+      <label>Motivated Seller Flags</label>
+      <div class="flags" style="margin-top:4px">${flags||'<span style="color:#999;font-size:12px">None</span>'}</div>
+    </div>
+    <div class="modal-field full">
+      <label>How to Find This Record</label>
+      <div class="val" style="font-size:12px;color:#555;line-height:1.6">
+        1. Go to <strong>acclaimweb.horrycounty.org</strong><br>
+        2. Click <strong>Official Records → Book/Page</strong><br>
+        3. Enter Book: <strong>${x((r.doc_num||'').split('/')[0]||'')}</strong> and Page: <strong>${x((r.doc_num||'').split('/')[1]||'')}</strong><br>
+        4. Click Search
+      </div>
+    </div>
+  `;
+
+  const viewUrl = r.owner
+    ? `https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=${encodeURIComponent(r.owner)}`
+    : '';
+
+  document.getElementById('mFoot').innerHTML = `
+    ${viewUrl ? `<a href="${viewUrl}" target="_blank"><button class="btn-sec">🔍 Search Owner in Acclaim</button></a>` : ''}
+    <button class="btn-sec" onclick="copySingle(${r._id})">📋 Copy Row</button>
+    <button class="btn-sec" onclick="closeModal()">Close</button>
+  `;
+
+  document.getElementById('modalBg').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modalBg').classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+function exportCSV() {
+  const cols = ['First Name','Last Name','Mailing Address','Mailing City','Mailing State','Mailing Zip',
+    'Property Address','Property City','Property State','Property Zip',
+    'Lead Type','Document Type','Date Filed','Document Number','Amount/Debt Owed',
+    'Seller Score','Motivated Seller Flags','Source','Public Records URL'];
+  const rows = [cols.join(',')];
+  filtered.forEach(r => {
+    const owner = r.owner||'';
+    const parts = owner.split(' ');
+    rows.push([
+      csv(parts[0]||''), csv(parts.slice(1).join(' ')||''),
+      csv(r.mail_address||''), csv(r.mail_city||''), csv(r.mail_state||'SC'), csv(r.mail_zip||''),
+      csv(r.prop_address||''), csv(r.prop_city||''), csv(r.prop_state||'SC'), csv(r.prop_zip||''),
+      csv(r.cat_label||''), csv(r.cat||''),
+      csv(r.filed||''), csv(r.doc_num||''),
+      r.amount||'', r.score||0,
+      csv((r.flags||[]).join('; ')),
+      csv('Horry County Register of Deeds'),
+      csv(r.owner ? `https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=${encodeURIComponent(r.owner)}` : ''),
+    ].join(','));
+  });
+  const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `horry_leads_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function copySingle(id) {
+  const r = ALL.find(a=>a._id===id);
+  if (!r) return;
+  const owner = r.owner||'';
+  const parts = owner.split(' ');
+  const row = [parts[0]||'', parts.slice(1).join(' ')||'',
+    r.mail_address||'', r.mail_city||'', r.mail_state||'SC', r.mail_zip||'',
+    r.prop_address||'', r.prop_city||'', r.prop_state||'SC', r.prop_zip||'',
+    r.cat_label||'', r.cat||'', r.filed||'', r.doc_num||'',
+    r.amount||'', r.score||0, (r.flags||[]).join('; '),
+    'Horry County Register of Deeds',
+    r.owner ? `https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=${encodeURIComponent(r.owner)}` : ''
+  ].join('\t');
+  navigator.clipboard.writeText(row).then(() => alert('Copied!'));
+}
+
+function x(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function csv(s) {
+  s = String(s||'');
+  return (s.includes(',')||s.includes('"')||s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+
+loadData();
+</script>
+</body>
+</html>
