@@ -1,12 +1,12 @@
 {
-  "fetched_at": "2026-06-03T17:26:58.166419",
+  "fetched_at": "2026-06-03T17:44:30.954322",
   "source": "Horry County Register of Deeds + GIS (v3)",
   "date_range": {
     "start": "05/20/2026",
     "end": "06/03/2026"
   },
   "total": 321,
-  "with_address": 81,
+  "with_address": 80,
   "records": [
     {
       "doc_num": "306/1105",
@@ -80,21 +80,21 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=GREENFIELDS%20AT%20COLLEGE%20PARK%20HOMEOWNERS%20ASSOCIATION%20INC",
       "source": "Register of Deeds",
-      "prop_address": "1841 HWY 544",
-      "prop_city": "Conway",
+      "prop_address": "",
+      "prop_city": "",
       "prop_state": "SC",
-      "prop_zip": "29526",
+      "prop_zip": "",
       "mail_address": "107 ALAHAMBRA CT",
       "mail_city": "CONWAY",
       "mail_state": "SC",
       "mail_zip": "29526",
       "delinquent_tax": "",
-      "tms": "1610003008",
+      "tms": "1511814006",
       "flags": [
         "HOA lien",
         "LLC / corp owner"
       ],
-      "score": 55
+      "score": 50
     },
     {
       "doc_num": "306/811",
@@ -110,21 +110,21 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=GREENFIELDS%20AT%20COLLEGE%20PARK%20HOMEOWNERS%20ASSOCIATION%20INC",
       "source": "Register of Deeds",
-      "prop_address": "1841 HWY 544",
-      "prop_city": "Conway",
+      "prop_address": "",
+      "prop_city": "",
       "prop_state": "SC",
-      "prop_zip": "29526",
+      "prop_zip": "",
       "mail_address": "107 ALAHAMBRA CT",
       "mail_city": "CONWAY",
       "mail_state": "SC",
       "mail_zip": "29526",
       "delinquent_tax": "",
-      "tms": "1610003008",
+      "tms": "1511814006",
       "flags": [
         "HOA lien",
         "LLC / corp owner"
       ],
-      "score": 55
+      "score": 50
     },
     {
       "doc_num": "306/874",
@@ -642,7 +642,7 @@
       "mail_state": "GA",
       "mail_zip": "30040",
       "delinquent_tax": "",
-      "tms": "1511814008",
+      "tms": "1502402079",
       "flags": [
         "HOA lien"
       ],
@@ -929,7 +929,7 @@
       "mail_state": "SC",
       "mail_zip": "29577",
       "delinquent_tax": "",
-      "tms": "1660205007",
+      "tms": "1870501079",
       "flags": [
         "HOA lien"
       ],
@@ -1101,7 +1101,7 @@
       "mail_state": "SC",
       "mail_zip": "29577",
       "delinquent_tax": "",
-      "tms": "1792101059",
+      "tms": "1792101040",
       "flags": [
         "HOA lien",
         "LLC / corp owner"
@@ -1168,35 +1168,6 @@
       "score": 50
     },
     {
-      "doc_num": "306/658",
-      "doc_type": "LN",
-      "filed": "5/29/2026 ",
-      "cat": "LN",
-      "cat_label": "HOA/Condo Lien",
-      "owner": "HAYES RICHARD",
-      "grantee": "MYRTLE BEACH GOLF & YACHT CLUB ASSOCIATION INC",
-      "amount": null,
-      "legal": "",
-      "tms_legal": "",
-      "addr_legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=MYRTLE%20BEACH%20GOLF%20&%20YACHT%20CLUB%20ASSOCIATION%20INC",
-      "source": "Register of Deeds",
-      "prop_address": "1322 ROYAL DEVON DR",
-      "prop_city": "Surfside Beach",
-      "prop_state": "SC",
-      "prop_zip": "29575",
-      "mail_address": "1322 ROYAL DEVON DR",
-      "mail_city": "MYRTLE BEACH",
-      "mail_state": "SC",
-      "mail_zip": "29575",
-      "delinquent_tax": "",
-      "tms": "1862101028",
-      "flags": [
-        "HOA lien"
-      ],
-      "score": 45
-    },
-    {
       "doc_num": "306/662",
       "doc_type": "LN",
       "filed": "5/29/2026 ",
@@ -1210,7 +1181,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1219,7 +1190,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1239,7 +1210,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1248,7 +1219,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1268,7 +1239,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1277,7 +1248,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1297,7 +1268,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1306,7 +1277,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1326,7 +1297,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1335,7 +1306,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1355,7 +1326,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1364,7 +1335,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1384,7 +1355,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1393,7 +1364,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1413,7 +1384,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1422,7 +1393,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1442,7 +1413,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1451,7 +1422,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1471,7 +1442,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1480,7 +1451,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1500,7 +1471,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1509,7 +1480,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1529,7 +1500,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1538,7 +1509,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1558,7 +1529,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1567,7 +1538,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1587,7 +1558,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1596,7 +1567,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1616,7 +1587,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1625,7 +1596,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1645,7 +1616,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1654,7 +1625,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1674,7 +1645,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1683,7 +1654,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1703,7 +1674,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1712,7 +1683,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1732,7 +1703,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1741,7 +1712,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1761,7 +1732,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1770,7 +1741,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1790,7 +1761,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1799,7 +1770,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1819,7 +1790,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1828,7 +1799,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1848,7 +1819,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1857,7 +1828,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1877,7 +1848,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1886,7 +1857,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1906,7 +1877,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1915,7 +1886,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1935,7 +1906,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1944,7 +1915,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1964,7 +1935,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -1973,7 +1944,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -1993,7 +1964,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -2002,7 +1973,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -2022,7 +1993,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -2031,7 +2002,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -2051,7 +2022,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WYNDHAM%20VACATION%20RESORTS%20INC",
       "source": "Register of Deeds",
-      "prop_address": "409 4TH AVE S",
+      "prop_address": "500 4TH AVE S",
       "prop_city": "North Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29582",
@@ -2060,7 +2031,7 @@
       "mail_state": "FL",
       "mail_zip": "32821",
       "delinquent_tax": "",
-      "tms": "1441004065",
+      "tms": "1441005074",
       "flags": [
         "HOA lien"
       ],
@@ -2123,6 +2094,35 @@
         "HOA lien"
       ],
       "score": 45
+    },
+    {
+      "doc_num": "306/658",
+      "doc_type": "LN",
+      "filed": "5/29/2026 ",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "HAYES RICHARD",
+      "grantee": "MYRTLE BEACH GOLF & YACHT CLUB ASSOCIATION INC",
+      "amount": null,
+      "legal": "",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=MYRTLE%20BEACH%20GOLF%20&%20YACHT%20CLUB%20ASSOCIATION%20INC",
+      "source": "Register of Deeds",
+      "prop_address": "",
+      "prop_city": "",
+      "prop_state": "SC",
+      "prop_zip": "",
+      "mail_address": "1664 OLD PEE DEE RD",
+      "mail_city": "HEMINGWAY",
+      "mail_state": "SC",
+      "mail_zip": "29554",
+      "delinquent_tax": "",
+      "tms": "0350001120",
+      "flags": [
+        "HOA lien"
+      ],
+      "score": 40
     },
     {
       "doc_num": "306/687",
@@ -2562,7 +2562,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=MEPJ%20LAND%20LP",
       "source": "Register of Deeds",
-      "prop_address": "1051 MILFORD WAY",
+      "prop_address": "3076 DICK POND RD",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29588",
@@ -2571,7 +2571,7 @@
       "mail_state": "SC",
       "mail_zip": "29575",
       "delinquent_tax": "",
-      "tms": "1850003017",
+      "tms": "1850003070",
       "flags": [],
       "score": 35
     },
@@ -2625,7 +2625,7 @@
       "mail_state": "SC",
       "mail_zip": "29116",
       "delinquent_tax": "",
-      "tms": "1950902117",
+      "tms": "1950902118",
       "flags": [
         "HOA lien",
         "LLC / corp owner"
@@ -2685,12 +2685,41 @@
       "mail_state": "SC",
       "mail_zip": "29116",
       "delinquent_tax": "",
-      "tms": "1950902117",
+      "tms": "1950902118",
       "flags": [
         "HOA lien",
         "LLC / corp owner"
       ],
       "score": 50
+    },
+    {
+      "doc_num": "306/626",
+      "doc_type": "LN",
+      "filed": "5/28/2026 ",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "THIBEDEAU BRYAN",
+      "grantee": "LAKES RESIDENTIAL AMENITY ASSOCIATION INC",
+      "amount": null,
+      "legal": "",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=LAKES%20RESIDENTIAL%20AMENITY%20ASSOCIATION%20INC",
+      "source": "Register of Deeds",
+      "prop_address": "300 FLAGSTONE DR",
+      "prop_city": "Myrtle Beach",
+      "prop_state": "SC",
+      "prop_zip": "29588",
+      "mail_address": "9 KODIAK RD",
+      "mail_city": "BROOKLINE",
+      "mail_state": "NH",
+      "mail_zip": "03033",
+      "delinquent_tax": "",
+      "tms": "1791603069",
+      "flags": [
+        "HOA lien"
+      ],
+      "score": 45
     },
     {
       "doc_num": "306/621",
@@ -2774,35 +2803,6 @@
       "mail_zip": "29576",
       "delinquent_tax": "",
       "tms": "1950902129",
-      "flags": [
-        "HOA lien"
-      ],
-      "score": 40
-    },
-    {
-      "doc_num": "306/626",
-      "doc_type": "LN",
-      "filed": "5/28/2026 ",
-      "cat": "LN",
-      "cat_label": "HOA/Condo Lien",
-      "owner": "THIBEDEAU BRYAN",
-      "grantee": "LAKES RESIDENTIAL AMENITY ASSOCIATION INC",
-      "amount": null,
-      "legal": "",
-      "tms_legal": "",
-      "addr_legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=LAKES%20RESIDENTIAL%20AMENITY%20ASSOCIATION%20INC",
-      "source": "Register of Deeds",
-      "prop_address": "",
-      "prop_city": "",
-      "prop_state": "SC",
-      "prop_zip": "",
-      "mail_address": "860 SALUDA RIVER RD",
-      "mail_city": "MYRTLE BEACH",
-      "mail_state": "SC",
-      "mail_zip": "29588",
-      "delinquent_tax": "",
-      "tms": "",
       "flags": [
         "HOA lien"
       ],
@@ -2907,7 +2907,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=ALL%20SHORES%20FLOORING%20INC",
       "source": "Register of Deeds",
-      "prop_address": "402 18TH AVE N",
+      "prop_address": "N OCEAN BLVD",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29577",
@@ -2916,7 +2916,7 @@
       "mail_state": "CA",
       "mail_zip": "90211",
       "delinquent_tax": "",
-      "tms": "1810334007",
+      "tms": "1810337009",
       "flags": [
         "Mechanic lien",
         "LLC / corp owner"
@@ -3085,12 +3085,12 @@
       "prop_city": "",
       "prop_state": "SC",
       "prop_zip": "",
-      "mail_address": "654 GREYLAG RD",
+      "mail_address": "654 GREYLEG RD",
       "mail_city": "MIDDLETOWN",
       "mail_state": "DE",
       "mail_zip": "19709",
       "delinquent_tax": "",
-      "tms": "1511815051",
+      "tms": "1723003049",
       "flags": [
         "HOA lien",
         "LLC / corp owner"
@@ -3255,16 +3255,16 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=HIDDEN%20OAKS%20HOMEOWNERS%20ASSOCIATION%20INC",
       "source": "Register of Deeds",
-      "prop_address": "504 30TH AVE N",
+      "prop_address": "98 HOLLY LN",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
-      "prop_zip": "29577",
-      "mail_address": "24712 INDEPENDENCE DR APT 2104",
-      "mail_city": "FARMINGTON",
-      "mail_state": "MI",
-      "mail_zip": "48335",
+      "prop_zip": "29572",
+      "mail_address": "98 HOLLY LN",
+      "mail_city": "MYRTLE BEACH",
+      "mail_state": "SC",
+      "mail_zip": "29572",
       "delinquent_tax": "",
-      "tms": "1731607029",
+      "tms": "1560504018",
       "flags": [
         "HOA lien"
       ],
@@ -3879,7 +3879,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=CELEBRITY%20ASSET%20PARTNERS%20LLC",
       "source": "Register of Deeds",
-      "prop_address": "402 18TH AVE N",
+      "prop_address": "N OCEAN BLVD",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29577",
@@ -3888,7 +3888,7 @@
       "mail_state": "CA",
       "mail_zip": "90211",
       "delinquent_tax": "",
-      "tms": "1810334007",
+      "tms": "1810337009",
       "flags": [
         "Mechanic lien",
         "LLC / corp owner"
@@ -4108,7 +4108,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=DUNES%20PAINTING",
       "source": "Register of Deeds",
-      "prop_address": "402 18TH AVE N",
+      "prop_address": "N OCEAN BLVD",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29577",
@@ -4117,7 +4117,7 @@
       "mail_state": "CA",
       "mail_zip": "90211",
       "delinquent_tax": "",
-      "tms": "1810334007",
+      "tms": "1810337009",
       "flags": [
         "Mechanic lien",
         "LLC / corp owner"
@@ -4138,7 +4138,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WXTITE%20LLC",
       "source": "Register of Deeds",
-      "prop_address": "402 18TH AVE N",
+      "prop_address": "N OCEAN BLVD",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29577",
@@ -4147,7 +4147,7 @@
       "mail_state": "CA",
       "mail_zip": "90211",
       "delinquent_tax": "",
-      "tms": "1810334007",
+      "tms": "1810337009",
       "flags": [
         "Mechanic lien",
         "LLC / corp owner"
@@ -4168,7 +4168,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=VANTAGE%20ARCHITECTURAL%20SOLUTIONS%20LLC",
       "source": "Register of Deeds",
-      "prop_address": "402 18TH AVE N",
+      "prop_address": "N OCEAN BLVD",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29577",
@@ -4177,7 +4177,7 @@
       "mail_state": "CA",
       "mail_zip": "90211",
       "delinquent_tax": "",
-      "tms": "1810334007",
+      "tms": "1810337009",
       "flags": [
         "Mechanic lien",
         "LLC / corp owner"
@@ -4271,29 +4271,58 @@
       "score": 45
     },
     {
-      "doc_num": "306/467",
+      "doc_num": "306/486",
       "doc_type": "LN",
       "filed": "5/22/2026 ",
       "cat": "LN",
       "cat_label": "HOA/Condo Lien",
-      "owner": "LEWIS JAMES B",
-      "grantee": "TIDES/DRIFTWOOD/OASIS HOMEOWNERS ASSOCIATION INC",
+      "owner": "MASTRY BETHANY",
+      "grantee": "ROBBERS ROOST VILLAS HORIZONTAL PROPERTY REGIME NO 3",
       "amount": null,
       "legal": "",
       "tms_legal": "",
       "addr_legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=TIDES/DRIFTWOOD/OASIS%20HOMEOWNERS%20ASSOCIATION%20INC",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=ROBBERS%20ROOST%20VILLAS%20HORIZONTAL%20PROPERTY%20REGIME%20NO%203",
       "source": "Register of Deeds",
-      "prop_address": "615 MCCOWN DR",
-      "prop_city": "Conway",
+      "prop_address": "3179 LYNDON DR",
+      "prop_city": "Little River",
       "prop_state": "SC",
-      "prop_zip": "29526",
-      "mail_address": "615 MCCOWN DR",
-      "mail_city": "CONWAY",
-      "mail_state": "SC",
-      "mail_zip": "29526",
+      "prop_zip": "29566",
+      "mail_address": "235 BEACHWOOD DR NW",
+      "mail_city": "CALABASH",
+      "mail_state": "NC",
+      "mail_zip": "28467",
       "delinquent_tax": "",
-      "tms": "1401701065",
+      "tms": "1301801156",
+      "flags": [
+        "HOA lien"
+      ],
+      "score": 45
+    },
+    {
+      "doc_num": "306/479",
+      "doc_type": "LN",
+      "filed": "5/22/2026 ",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "SMITH JOHNATHAN",
+      "grantee": "PINEBROOK HOMEOWNERS ASSOCIATION INC",
+      "amount": null,
+      "legal": "",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=PINEBROOK%20HOMEOWNERS%20ASSOCIATION%20INC",
+      "source": "Register of Deeds",
+      "prop_address": "3894 PINEBROOK CIR",
+      "prop_city": "Little River",
+      "prop_state": "SC",
+      "prop_zip": "29566",
+      "mail_address": "3894 PINEBROOK CIR",
+      "mail_city": "LITTLE RIVER",
+      "mail_state": "SC",
+      "mail_zip": "29566",
+      "delinquent_tax": "",
+      "tms": "1300403004",
       "flags": [
         "HOA lien"
       ],
@@ -4410,64 +4439,6 @@
       "mail_zip": "28173",
       "delinquent_tax": "",
       "tms": "1660335119",
-      "flags": [
-        "HOA lien"
-      ],
-      "score": 40
-    },
-    {
-      "doc_num": "306/486",
-      "doc_type": "LN",
-      "filed": "5/22/2026 ",
-      "cat": "LN",
-      "cat_label": "HOA/Condo Lien",
-      "owner": "MASTRY BETHANY",
-      "grantee": "ROBBERS ROOST VILLAS HORIZONTAL PROPERTY REGIME NO 3",
-      "amount": null,
-      "legal": "",
-      "tms_legal": "",
-      "addr_legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=ROBBERS%20ROOST%20VILLAS%20HORIZONTAL%20PROPERTY%20REGIME%20NO%203",
-      "source": "Register of Deeds",
-      "prop_address": "",
-      "prop_city": "",
-      "prop_state": "SC",
-      "prop_zip": "",
-      "mail_address": "846 VILLA DR",
-      "mail_city": "N MYRTLE BEACH",
-      "mail_state": "SC",
-      "mail_zip": "29582",
-      "delinquent_tax": "",
-      "tms": "1440302180",
-      "flags": [
-        "HOA lien"
-      ],
-      "score": 40
-    },
-    {
-      "doc_num": "306/479",
-      "doc_type": "LN",
-      "filed": "5/22/2026 ",
-      "cat": "LN",
-      "cat_label": "HOA/Condo Lien",
-      "owner": "SMITH JOHNATHAN",
-      "grantee": "PINEBROOK HOMEOWNERS ASSOCIATION INC",
-      "amount": null,
-      "legal": "",
-      "tms_legal": "",
-      "addr_legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=PINEBROOK%20HOMEOWNERS%20ASSOCIATION%20INC",
-      "source": "Register of Deeds",
-      "prop_address": "",
-      "prop_city": "",
-      "prop_state": "SC",
-      "prop_zip": "",
-      "mail_address": "15704 WHIRLAND DR",
-      "mail_city": "MIDLOTHIAN",
-      "mail_state": "VA",
-      "mail_zip": "23112",
-      "delinquent_tax": "",
-      "tms": "1870106270",
       "flags": [
         "HOA lien"
       ],
@@ -4613,6 +4584,35 @@
       "mail_zip": "28115",
       "delinquent_tax": "",
       "tms": "1560507036",
+      "flags": [
+        "HOA lien"
+      ],
+      "score": 40
+    },
+    {
+      "doc_num": "306/467",
+      "doc_type": "LN",
+      "filed": "5/22/2026 ",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "LEWIS JAMES B",
+      "grantee": "TIDES/DRIFTWOOD/OASIS HOMEOWNERS ASSOCIATION INC",
+      "amount": null,
+      "legal": "",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=TIDES/DRIFTWOOD/OASIS%20HOMEOWNERS%20ASSOCIATION%20INC",
+      "source": "Register of Deeds",
+      "prop_address": "",
+      "prop_city": "",
+      "prop_state": "SC",
+      "prop_zip": "",
+      "mail_address": "615 MCCOWN DR",
+      "mail_city": "CONWAY",
+      "mail_state": "SC",
+      "mail_zip": "29526",
+      "delinquent_tax": "",
+      "tms": "1811302250",
       "flags": [
         "HOA lien"
       ],
@@ -4774,7 +4774,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=HITT%20CONTRACTING%20INC",
       "source": "Register of Deeds",
-      "prop_address": "402 18TH AVE N",
+      "prop_address": "N OCEAN BLVD",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29577",
@@ -4783,7 +4783,7 @@
       "mail_state": "CA",
       "mail_zip": "90211",
       "delinquent_tax": "",
-      "tms": "1810334007",
+      "tms": "1810337009",
       "flags": [
         "Mechanic lien",
         "LLC / corp owner"
@@ -4837,17 +4837,46 @@
       "prop_city": "",
       "prop_state": "SC",
       "prop_zip": "",
-      "mail_address": "654 GREYLAG RD",
+      "mail_address": "654 GREYLEG RD",
       "mail_city": "MIDDLETOWN",
       "mail_state": "DE",
       "mail_zip": "19709",
       "delinquent_tax": "",
-      "tms": "1511815051",
+      "tms": "1723003049",
       "flags": [
         "HOA lien",
         "LLC / corp owner"
       ],
       "score": 50
+    },
+    {
+      "doc_num": "306/427",
+      "doc_type": "LN",
+      "filed": "5/21/2026 ",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "DOS SANTOS ANTHONY",
+      "grantee": "LAUREL WOODS PROPERTY OWNERS ASSOCIATION INC",
+      "amount": null,
+      "legal": "",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=LAUREL%20WOODS%20PROPERTY%20OWNERS%20ASSOCIATION%20INC",
+      "source": "Register of Deeds",
+      "prop_address": "8525 WOODFIELD DR",
+      "prop_city": "Myrtle Beach",
+      "prop_state": "SC",
+      "prop_zip": "29588",
+      "mail_address": "8525 WOODFIELD DR",
+      "mail_city": "MYRTLE BEACH",
+      "mail_state": "SC",
+      "mail_zip": "29588",
+      "delinquent_tax": "",
+      "tms": "1842201124",
+      "flags": [
+        "HOA lien"
+      ],
+      "score": 45
     },
     {
       "doc_num": "306/413",
@@ -4950,10 +4979,10 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=TIDEWATER%20PLANTATION%20COMMUNITY%20ASSOCIATION%20INC",
       "source": "Register of Deeds",
-      "prop_address": "2504 N OCEAN BLVD",
+      "prop_address": "6804 N OCEAN BLVD",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
-      "prop_zip": "29577",
+      "prop_zip": "29572",
       "mail_address": "2000 SPINNAKER DR",
       "mail_city": "N MYRTLE BEACH",
       "mail_state": "SC",
@@ -5037,7 +5066,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WEINBERG%20PLUMBING%20INC",
       "source": "Register of Deeds",
-      "prop_address": "N OCEAN BLVD",
+      "prop_address": "1804 N OCEAN BLVD",
       "prop_city": "Myrtle Beach",
       "prop_state": "SC",
       "prop_zip": "29577",
@@ -5046,40 +5075,11 @@
       "mail_state": "CA",
       "mail_zip": "90211",
       "delinquent_tax": "",
-      "tms": "1810337009",
+      "tms": "1810338003",
       "flags": [
         "Mechanic lien"
       ],
       "score": 45
-    },
-    {
-      "doc_num": "306/427",
-      "doc_type": "LN",
-      "filed": "5/21/2026 ",
-      "cat": "LN",
-      "cat_label": "HOA/Condo Lien",
-      "owner": "DOS SANTOS ANTHONY",
-      "grantee": "LAUREL WOODS PROPERTY OWNERS ASSOCIATION INC",
-      "amount": null,
-      "legal": "",
-      "tms_legal": "",
-      "addr_legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=LAUREL%20WOODS%20PROPERTY%20OWNERS%20ASSOCIATION%20INC",
-      "source": "Register of Deeds",
-      "prop_address": "",
-      "prop_city": "",
-      "prop_state": "SC",
-      "prop_zip": "",
-      "mail_address": "8525 WOODFIELD DR",
-      "mail_city": "MYRTLE BEACH",
-      "mail_state": "SC",
-      "mail_zip": "29588",
-      "delinquent_tax": "",
-      "tms": "1560336040",
-      "flags": [
-        "HOA lien"
-      ],
-      "score": 40
     },
     {
       "doc_num": "306/379",
@@ -6234,7 +6234,7 @@
       "mail_state": "SC",
       "mail_zip": "29597",
       "delinquent_tax": "",
-      "tms": "1303301001",
+      "tms": "1303301047",
       "flags": [
         "HOA lien"
       ],
@@ -6557,7 +6557,7 @@
       "mail_state": "SC",
       "mail_zip": "29582",
       "delinquent_tax": "",
-      "tms": "1440905199",
+      "tms": "1450213019",
       "flags": [
         "HOA lien",
         "LLC / corp owner",
@@ -6769,7 +6769,7 @@
       "mail_state": "FL",
       "mail_zip": "34746",
       "delinquent_tax": "",
-      "tms": "1870501084",
+      "tms": "1870501088",
       "flags": [
         "HOA lien",
         "LLC / corp owner",
@@ -7123,16 +7123,16 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=ANTIGUA%20PROPERTY%20OWNERS%20ASSOCIATION%20INC",
       "source": "Register of Deeds",
-      "prop_address": "2017 DUCKWEED DR",
-      "prop_city": "Longs",
+      "prop_address": "8 SAN MARKS CT",
+      "prop_city": "Myrtle Beach",
       "prop_state": "SC",
-      "prop_zip": "29568",
+      "prop_zip": "29572",
       "mail_address": "8 SAN MARKS CT",
       "mail_city": "MYRTLE BEACH",
       "mail_state": "SC",
       "mail_zip": "29572",
       "delinquent_tax": "",
-      "tms": "1161701191",
+      "tms": "1651203026",
       "flags": [
         "HOA lien",
         "New this week"
@@ -7163,36 +7163,6 @@
       "mail_zip": "29582",
       "delinquent_tax": "",
       "tms": "1313401038",
-      "flags": [
-        "HOA lien",
-        "New this week"
-      ],
-      "score": 60
-    },
-    {
-      "doc_num": "306/1011",
-      "doc_type": "LN",
-      "filed": "2026-06-02",
-      "cat": "LN",
-      "cat_label": "HOA/Condo Lien",
-      "owner": "MOORE JASON M",
-      "grantee": "PINNACLE OCEANFRONT TOWER HOMEOWNERS ASSOCIATION INC",
-      "amount": null,
-      "legal": "",
-      "tms_legal": "",
-      "addr_legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=PINNACLE%20OCEANFRONT%20TOWER%20HOMEOWNERS%20ASSOCIATION%20INC",
-      "source": "Register of Deeds",
-      "prop_address": "2160 N BERWICK DR",
-      "prop_city": "Surfside Beach",
-      "prop_state": "SC",
-      "prop_zip": "29575",
-      "mail_address": "2160 N BERWICK DR",
-      "mail_city": "SURFSIDE BEACH",
-      "mail_state": "SC",
-      "mail_zip": "29575",
-      "delinquent_tax": "",
-      "tms": "1861801039",
       "flags": [
         "HOA lien",
         "New this week"
@@ -7243,16 +7213,16 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=FOREST%20AT%20BRIARCLIFFE%20SECTION%20II%20PROPERTY%20OWNERS%20ASSOCIATION%20INC",
       "source": "Register of Deeds",
-      "prop_address": "4711 EYERLY ST",
-      "prop_city": "North Myrtle Beach",
+      "prop_address": "1001 WATERWAY LN",
+      "prop_city": "Myrtle Beach",
       "prop_state": "SC",
-      "prop_zip": "29582",
+      "prop_zip": "29572",
       "mail_address": "1001 WATERWAY LN",
       "mail_city": "MYRTLE BEACH",
       "mail_state": "SC",
       "mail_zip": "29572",
       "delinquent_tax": "",
-      "tms": "1560629007",
+      "tms": "1550827021",
       "flags": [
         "HOA lien",
         "New this week"
@@ -8021,6 +7991,36 @@
       "score": 55
     },
     {
+      "doc_num": "306/1011",
+      "doc_type": "LN",
+      "filed": "2026-06-02",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "MOORE JASON M",
+      "grantee": "PINNACLE OCEANFRONT TOWER HOMEOWNERS ASSOCIATION INC",
+      "amount": null,
+      "legal": "",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=PINNACLE%20OCEANFRONT%20TOWER%20HOMEOWNERS%20ASSOCIATION%20INC",
+      "source": "Register of Deeds",
+      "prop_address": "",
+      "prop_city": "",
+      "prop_state": "SC",
+      "prop_zip": "",
+      "mail_address": "2925 CARRIAGE LN UNIT 129",
+      "mail_city": "MYRTLE BEACH",
+      "mail_state": "SC",
+      "mail_zip": "29577",
+      "delinquent_tax": "",
+      "tms": "1870501157",
+      "flags": [
+        "HOA lien",
+        "New this week"
+      ],
+      "score": 55
+    },
+    {
       "doc_num": "306/1015",
       "doc_type": "LN",
       "filed": "2026-06-02",
@@ -8098,12 +8098,12 @@
       "prop_city": "",
       "prop_state": "SC",
       "prop_zip": "",
-      "mail_address": "3 GALLENWOL CT",
-      "mail_city": "GREENSBORO",
-      "mail_state": "NC",
-      "mail_zip": "27405",
+      "mail_address": "13479 CALIMENTO ST",
+      "mail_city": "VENICE",
+      "mail_state": "FL",
+      "mail_zip": "34293",
       "delinquent_tax": "",
-      "tms": "1551403119",
+      "tms": "1870501066",
       "flags": [
         "HOA lien",
         "New this week"
@@ -8482,12 +8482,12 @@
       "prop_city": "",
       "prop_state": "SC",
       "prop_zip": "",
-      "mail_address": "824 CIPRIANA DR",
-      "mail_city": "MYRTLE BEACH",
-      "mail_state": "SC",
-      "mail_zip": "29572",
+      "mail_address": "17 VISTA DR",
+      "mail_city": "NANUET",
+      "mail_state": "NY",
+      "mail_zip": "10954",
       "delinquent_tax": "",
-      "tms": "",
+      "tms": "1811044062",
       "flags": [
         "HOA lien",
         "New this week"
@@ -8547,7 +8547,7 @@
       "mail_state": "NY",
       "mail_zip": "12983",
       "delinquent_tax": "",
-      "tms": "1951101044",
+      "tms": "1870501204",
       "flags": [
         "HOA lien",
         "New this week"
@@ -8607,7 +8607,7 @@
       "mail_state": "TX",
       "mail_zip": "78738",
       "delinquent_tax": "",
-      "tms": "1811303169",
+      "tms": "1811303149",
       "flags": [
         "HOA lien",
         "New this week"
@@ -8841,7 +8841,7 @@
       "mail_state": "SC",
       "mail_zip": "29572",
       "delinquent_tax": "",
-      "tms": "1560635089",
+      "tms": "1740305318",
       "flags": [
         "HOA lien",
         "LLC / corp owner",
@@ -9022,7 +9022,7 @@
       "mail_state": "PA",
       "mail_zip": "15071",
       "delinquent_tax": "",
-      "tms": "1731624102",
+      "tms": "1740305497",
       "flags": [
         "HOA lien",
         "New this week"
@@ -9112,7 +9112,7 @@
       "mail_state": "PA",
       "mail_zip": "15071",
       "delinquent_tax": "",
-      "tms": "1731624102",
+      "tms": "1740305497",
       "flags": [
         "HOA lien",
         "New this week"
