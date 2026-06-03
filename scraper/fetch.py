@@ -1,7 +1,16 @@
 """
-Horry County SC — Complete Lead Scraper — UPDATED v2
+Horry County SC — Complete Lead Scraper — UPDATED v3
 ========================================================
-CHANGES in v2:
+CHANGES in v3:
+  1. Code Violations removed entirely (EnerGov is staff-only / unscrapable)
+     - Removed CODE VIOLATION keyword, flag, and scoring bump
+  2. Dashboard/output sort order changed:
+     - Records now ordered NEWEST FILED FIRST, then HIGHEST SCORE within a day
+  3. Reliability guard added:
+     - If a scrape returns 0 records, the run FAILS (exit 1) and does NOT
+       overwrite records.json — preserving the last good data on the dashboard
+
+CHANGES in v2 (retained):
   1. Pre-foreclosure (Lis Pendens) address lookup IMPROVED:
      - Property address now pulled from Horry GIS by TMS number (not just owner name)
      - TMS extracted from Acclaim legal description field
@@ -80,7 +89,6 @@ DOC_TYPE_KEYWORDS = [
     ("LETTERS TEST",           "PRO",     "Probate Document"),
     ("LETTERS OF ADMIN",       "PRO",     "Probate Document"),
     ("NOTICE OF COMMENCEMENT", "NOC",     "Notice of Commencement"),
-    ("CODE VIOLATION",         "CV",      "Code Violation"),
 ]
 
 
@@ -134,7 +142,6 @@ def compute_flags(record: dict) -> list:
     if cat == "PRO":                                     flags.append("Probate / estate")
     if "HOA" in cat_label.upper() or "CONDO" in cat_label.upper():
         flags.append("HOA lien")
-    if cat == "CV":                                      flags.append("Code violation")
     if owner and re.search(r"\b(LLC|INC|CORP|LTD|TRUST|HOLDINGS)\b", owner.upper()):
         flags.append("LLC / corp owner")
     try:
@@ -154,7 +161,6 @@ def compute_score(record: dict, flags: list) -> int:
         if amount > 100_000: score += 15
         elif amount > 50_000: score += 10
     if "New this week"  in flags: score += 5
-    if "Code violation" in flags: score += 15
     if record.get("prop_address", "").strip(): score += 5
     return min(score, 100)
 
@@ -173,7 +179,7 @@ class GISLookup:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (compatible; HorryLeadScraper/2.0)"
+            "User-Agent": "Mozilla/5.0 (compatible; HorryLeadScraper/3.0)"
         })
         self._name_cache = {}
         self._tms_cache  = {}
@@ -405,14 +411,14 @@ def parse_acclaim_csv(raw: str) -> list:
                     "grantee":        grantee,
                     "amount":         amount,
                     "legal":          legal,
-                    "tms_legal":      tms_from_legal,   # NEW: TMS from legal text
-                    "addr_legal":     addr_from_legal,  # NEW: address from legal text
+                    "tms_legal":      tms_from_legal,   # TMS from legal text
+                    "addr_legal":     addr_from_legal,  # address from legal text
                     "clerk_url":      clerk_url,
                     "source":         "Register of Deeds",
                     "prop_address":   addr_from_legal,  # Pre-fill from legal
                     "prop_city":      "", "prop_state": "SC", "prop_zip": "",
                     "mail_address":   "", "mail_city": "", "mail_state": "SC", "mail_zip": "",
-                    "delinquent_tax": "",  # NEW: cross-ref with delinquent tax list
+                    "delinquent_tax": "",  # cross-ref with delinquent tax list
                 })
             except Exception as e:
                 log.debug("Row error: %s", e)
@@ -553,7 +559,7 @@ async def run_acclaim(page: Page) -> list:
 
 async def main():
     log.info("="*60)
-    log.info("Horry County Lead Scraper — v2 (TMS-enhanced LP addresses)")
+    log.info("Horry County Lead Scraper — v3 (no code violations; newest+score sort)")
     log.info("="*60)
 
     all_records = []
@@ -613,7 +619,7 @@ async def main():
         addr_cache[name] = addr
         time.sleep(0.1)
 
-    # Apply addresses with NEW TMS fallback for LP records
+    # Apply addresses with TMS fallback for LP records
     enriched_by_name = enriched_by_tms = 0
     for r in all_records:
         owner   = r.get("owner","").strip()
@@ -631,7 +637,7 @@ async def main():
         if not addr_data and contact != owner:
             addr_data = addr_cache.get(owner)
 
-        # ── NEW: TMS fallback for LP records ──────────────────────────────
+        # ── TMS fallback for LP records ──────────────────────────────────
         if not addr_data and cat == "LP":
             tms = r.get("tms_legal","")
             if tms:
@@ -673,7 +679,7 @@ async def main():
                 if not r.get("tms",""):
                     r["tms"] = dt.get("delinquent_tms","")
                 r.setdefault("flags", [])
-                if "delinquent_tax" not in r["flags"]:
+                if "Also delinquent taxes" not in r["flags"]:
                     r["flags"].append("Also delinquent taxes")
                 log.info("Tax cross-ref hit: %s owes $%s", owner[:25], dt.get("delinquent_tax",""))
         time.sleep(0.05)
@@ -692,7 +698,17 @@ async def main():
         flags     = list(dict.fromkeys(flags))
         r["flags"] = flags
         r["score"] = compute_score(r, flags)
-    unique.sort(key=lambda r: r.get("score",0), reverse=True)
+
+    # Sort: NEWEST FILED FIRST, then HIGHEST SCORE within the same day.
+    # filed is normalized to YYYY-MM-DD, so reverse=True orders dates newest-first
+    # and breaks ties by score high-to-low.
+    unique.sort(key=lambda r: (r.get("filed",""), r.get("score",0)), reverse=True)
+
+    # ── Reliability guard: never overwrite good data with an empty scrape ──
+    if not unique:
+        log.error("Scrape produced 0 records — likely an AcclaimWeb/export failure.")
+        log.error("Preserving existing records.json and failing the run.")
+        sys.exit(1)
 
     # ── Step 4: Save ──────────────────────────────────────────────────────
     start_date, end_date = date_range_str()
@@ -700,7 +716,7 @@ async def main():
 
     payload = {
         "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS (v2)",
+        "source":       "Horry County Register of Deeds + GIS (v3)",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(unique),
         "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
