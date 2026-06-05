@@ -72,6 +72,7 @@ body {
 .amber { color: #d97706; }
 .red { color: #dc2626; }
 .black { color: #111; }
+.teal { color: #0d9488; }
 
 /* ── BODY LAYOUT ── */
 .body-layout {
@@ -231,6 +232,7 @@ table td {
 .t-TAXDEED{ background: #fef9c3; color: #854d0e; border-color: #fde047; }
 .t-JUD    { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
 .t-LN     { background: #e0f2fe; color: #0c4a6e; border-color: #7dd3fc; }
+.t-INH    { background: #ccfbf1; color: #115e59; border-color: #5eead4; }
 .t-PRO    { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }
 .t-NOC    { background: #d1fae5; color: #064e3b; border-color: #6ee7b7; }
 .t-RELLP  { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
@@ -374,6 +376,7 @@ a.view-link:hover { text-decoration: underline; }
   <div class="stat"><div class="stat-label">Lis Pendens</div><div class="stat-value red" id="sLP">—</div></div>
   <div class="stat"><div class="stat-label">Judgments</div><div class="stat-value black" id="sJUD">—</div></div>
   <div class="stat"><div class="stat-label">Liens</div><div class="stat-value black" id="sLN">—</div></div>
+  <div class="stat"><div class="stat-label">Inherited</div><div class="stat-value teal" id="sINH">—</div></div>
   <div class="stat"><div class="stat-label">Probate</div><div class="stat-value blue" id="sProb">—</div></div>
   <div class="stat"><div class="stat-label">Avg Score</div><div class="stat-value blue" id="sAvg">—</div></div>
 </div>
@@ -460,10 +463,10 @@ let activeType = 'all', activeScore = 'all', activeFlag = 'all';
 
 const CAT_LABELS = {
   LP:'Lis Pendens', NOFC:'Notice of Foreclosure', TAXDEED:'Tax Deed',
-  JUD:'Judgment', LN:'Lien', PRO:'Probate', NOC:'Notice of Comm.',
+  JUD:'Judgment', LN:'Lien', INH:'Inherited', PRO:'Probate', NOC:'Notice of Comm.',
   RELLP:'Release LP'
 };
-const TYPE_ORDER = ['LP','NOFC','TAXDEED','JUD','LN','PRO','NOC','RELLP'];
+const TYPE_ORDER = ['LP','NOFC','TAXDEED','JUD','LN','INH','PRO','NOC','RELLP'];
 
 async function loadData() {
   try {
@@ -492,6 +495,7 @@ function updateStats() {
   document.getElementById('sLP').textContent    = ALL.filter(r=>r.cat==='LP').length;
   document.getElementById('sJUD').textContent   = ALL.filter(r=>r.cat==='JUD').length;
   document.getElementById('sLN').textContent    = ALL.filter(r=>r.cat==='LN').length;
+  document.getElementById('sINH').textContent   = ALL.filter(r=>r.cat==='INH').length;
   document.getElementById('sProb').textContent  = ALL.filter(r=>r.cat==='PRO').length;
   const avg = ALL.length ? Math.round(ALL.reduce((s,r)=>s+(r.score||0),0)/ALL.length) : 0;
   document.getElementById('sAvg').textContent   = avg;
