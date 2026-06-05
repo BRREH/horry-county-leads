@@ -108,7 +108,7 @@ DOC_TYPE_KEYWORDS = [
     ("PROBATE",                "PRO",     "Probate Document"),
     ("LETTERS TEST",           "PRO",     "Probate Document"),
     ("LETTERS OF ADMIN",       "PRO",     "Probate Document"),
-    ("DEED OF DISTRIBUTION",   "PRO",     "Probate / Estate Deed"),
+    ("DEED OF DISTRIBUTION",   "INH",     "Inherited"),
     ("PERSONAL REPRESENTATIVE","PRO",     "Probate Document"),
     ("NOTICE OF COMMENCEMENT", "NOC",     "Notice of Commencement"),
 ]
@@ -190,6 +190,7 @@ def compute_flags(record: dict) -> list:
     if "TAX" in cat_label.upper():                       flags.append("Tax lien")
     if "MECHANIC" in cat_label.upper():                  flags.append("Mechanic lien")
     if cat == "PRO":                                     flags.append("Probate / estate")
+    if cat == "INH":                                     flags.append("Inherited / estate")
     if "HOA" in cat_label.upper() or "CONDO" in cat_label.upper():
         flags.append("HOA lien")
     if owner and re.search(r"\b(LLC|INC|CORP|LTD|TRUST|HOLDINGS)\b", owner.upper()):
@@ -674,7 +675,7 @@ async def main():
         if owner:   names_to_lookup.add(owner)
         if grantee and (
             "HOA" in cat_lbl or "CONDO" in cat_lbl or "MECHANIC" in cat_lbl or
-            cat in ("LN","PRO","NOFC","LP")
+            cat in ("LN","PRO","NOFC","LP","INH")
         ):
             names_to_lookup.add(grantee)
 
@@ -695,7 +696,7 @@ async def main():
 
         use_grantee = (
             "HOA" in cat_lbl or "CONDO" in cat_lbl or "MECHANIC" in cat_lbl or
-            "CHILD SUPPORT" in cat_lbl or cat in ("PRO","NOFC","LP")
+            "CHILD SUPPORT" in cat_lbl or cat in ("PRO","NOFC","LP","INH")
         )
         contact = grantee if (use_grantee and grantee) else owner
 
@@ -712,15 +713,20 @@ async def main():
         if is_business_entity(contact):
             addr_data = None
 
-        # ── TMS fallback for LP records ──────────────────────────────────
-        if not addr_data and cat == "LP":
+        # ── TMS fallback: pull the property address straight from the parcel
+        #    number in the legal description. Used for Lis Pendens AND for
+        #    Probate / Deed-of-Distribution records, where the heir often
+        #    isn't yet the parcel's GIS owner so a name lookup misses, but the
+        #    deed's legal text carries the TMS. ──────────────────────────────
+        if not addr_data and cat in ("LP", "PRO", "INH"):
             tms = r.get("tms_legal","")
             if tms:
-                log.debug("LP: trying TMS lookup %s for %s", tms, owner[:25])
+                log.debug("%s: trying TMS lookup %s for %s", cat, tms, owner[:25])
                 addr_data = gis.lookup_by_tms(tms)
                 if addr_data:
                     enriched_by_tms += 1
-                    log.info("LP TMS hit: %s → %s", tms, addr_data.get("prop_address","")[:30])
+                    log.info("%s TMS hit: %s -> %s", cat, tms,
+                             addr_data.get("prop_address","")[:30])
 
         if addr_data:
             # Only overwrite prop_address if GIS gives something better
@@ -810,7 +816,7 @@ async def main():
 
     payload = {
         "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS (v4)",
+        "source":       "Horry County Register of Deeds + GIS (v5)",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(unique),
         "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
