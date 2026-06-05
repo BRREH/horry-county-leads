@@ -73,6 +73,7 @@ body {
 .red { color: #dc2626; }
 .black { color: #111; }
 .teal { color: #0d9488; }
+.purple { color: #7c3aed; }
 
 /* ── BODY LAYOUT ── */
 .body-layout {
@@ -234,6 +235,7 @@ table td {
 .t-LN     { background: #e0f2fe; color: #0c4a6e; border-color: #7dd3fc; }
 .t-INH    { background: #ccfbf1; color: #115e59; border-color: #5eead4; }
 .t-PRO    { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }
+.t-TAX    { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
 .t-NOC    { background: #d1fae5; color: #064e3b; border-color: #6ee7b7; }
 .t-RELLP  { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
 .t-MISC   { background: #f9fafb; color: #6b7280; border-color: #e5e7eb; }
@@ -378,6 +380,7 @@ a.view-link:hover { text-decoration: underline; }
   <div class="stat"><div class="stat-label">Liens</div><div class="stat-value black" id="sLN">—</div></div>
   <div class="stat"><div class="stat-label">Inherited</div><div class="stat-value teal" id="sINH">—</div></div>
   <div class="stat"><div class="stat-label">Probate</div><div class="stat-value blue" id="sProb">—</div></div>
+  <div class="stat"><div class="stat-label">Delinquent Tax</div><div class="stat-value purple" id="sTax">—</div></div>
   <div class="stat"><div class="stat-label">Avg Score</div><div class="stat-value blue" id="sAvg">—</div></div>
 </div>
 
@@ -464,9 +467,9 @@ let activeType = 'all', activeScore = 'all', activeFlag = 'all';
 const CAT_LABELS = {
   LP:'Lis Pendens', NOFC:'Notice of Foreclosure', TAXDEED:'Tax Deed',
   JUD:'Judgment', LN:'Lien', INH:'Inherited', PRO:'Probate', NOC:'Notice of Comm.',
-  RELLP:'Release LP'
+  RELLP:'Release LP', TAX:'Delinquent Tax'
 };
-const TYPE_ORDER = ['LP','NOFC','TAXDEED','JUD','LN','INH','PRO','NOC','RELLP'];
+const TYPE_ORDER = ['LP','NOFC','TAXDEED','JUD','LN','INH','PRO','TAX','NOC','RELLP'];
 
 async function loadData() {
   try {
@@ -497,6 +500,7 @@ function updateStats() {
   document.getElementById('sLN').textContent    = ALL.filter(r=>r.cat==='LN').length;
   document.getElementById('sINH').textContent   = ALL.filter(r=>r.cat==='INH').length;
   document.getElementById('sProb').textContent  = ALL.filter(r=>r.cat==='PRO').length;
+  document.getElementById('sTax').textContent   = ALL.filter(r=>r.cat==='TAX').length;
   const avg = ALL.length ? Math.round(ALL.reduce((s,r)=>s+(r.score||0),0)/ALL.length) : 0;
   document.getElementById('sAvg').textContent   = avg;
 }
