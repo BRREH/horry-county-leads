@@ -1,5 +1,5 @@
 """
-Horry County SC — Complete Lead Scraper — UPDATED v6
+Horry County SC — Complete Lead Scraper — UPDATED v7
 ========================================================
 CHANGES in v5 (address accuracy — fixes the "Wyndham cluster" bug where many
 different people all got one lienholder's address):
@@ -934,6 +934,13 @@ async def main():
         flags      = compute_flags(r)
         r["flags"] = list(dict.fromkeys(flags))
         r["score"] = compute_score(r, r["flags"])
+    # Every listed lead must have a property address. Tax parcels the county
+    # hasn't assigned a situs address to (vacant land, campground lots, etc.)
+    # have no property address to show, so they are dropped here.
+    tax_total   = len(tax_records)
+    tax_records = [r for r in tax_records if r.get("prop_address","").strip()]
+    log.info("Delinquent tax: %d of %d have a property address (rest dropped)",
+             len(tax_records), tax_total)
     unique = unique + tax_records
     log.info("Combined total (ROD %d + tax %d) = %d",
              len(kept), len(tax_records), len(unique))
@@ -957,7 +964,7 @@ async def main():
 
     payload = {
         "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS (v6)",
+        "source":       "Horry County Register of Deeds + GIS (v7)",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(unique),
         "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
