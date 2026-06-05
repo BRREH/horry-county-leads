@@ -1,5 +1,5 @@
 """
-Horry County SC — Complete Lead Scraper — UPDATED v5
+Horry County SC — Complete Lead Scraper — UPDATED v6
 ========================================================
 CHANGES in v5 (address accuracy — fixes the "Wyndham cluster" bug where many
 different people all got one lienholder's address):
@@ -191,6 +191,7 @@ def compute_flags(record: dict) -> list:
     if "MECHANIC" in cat_label.upper():                  flags.append("Mechanic lien")
     if cat == "PRO":                                     flags.append("Probate / estate")
     if cat == "INH":                                     flags.append("Inherited / estate")
+    if cat == "TAX":                                     flags.append("Tax delinquent")
     if "HOA" in cat_label.upper() or "CONDO" in cat_label.upper():
         flags.append("HOA lien")
     if owner and re.search(r"\b(LLC|INC|CORP|LTD|TRUST|HOLDINGS)\b", owner.upper()):
@@ -270,6 +271,57 @@ class GISLookup:
         if not tms:
             return None
         return self._query_site_address(tms.strip())
+
+    # ── Public: batch-resolve many TMS numbers to address (50 per query) ────
+    def lookup_many_by_tms(self, tms_list) -> dict:
+        """Resolve a list of TMS numbers to mailing + property address in
+        batches via 'TMS IN (...)'. Returns {tms: {mail_*, prop_*, tms}}."""
+        out = {}
+        uniq = list(dict.fromkeys(
+            t.strip() for t in tms_list if t and str(t).strip()
+        ))
+        for i in range(0, len(uniq), 50):
+            batch  = uniq[i:i+50]
+            inlist = ",".join("'" + t.replace("'", "''") + "'" for t in batch)
+            # Layer 24 — owner mailing address
+            try:
+                r = self.session.get(PARCELS_URL, params={
+                    "where": f"TMS IN ({inlist})",
+                    "outFields": "OwnerStreet,OwnerCity,OwnerState,OwnerZip,TMS",
+                    "returnGeometry": "false", "f": "json",
+                }, timeout=20)
+                for f in r.json().get("features", []):
+                    a = f["attributes"]; t = str(a.get("TMS","") or "").strip()
+                    if t:
+                        out.setdefault(t, {}).update({
+                            "mail_address": (a.get("OwnerStreet","") or "").strip(),
+                            "mail_city":    (a.get("OwnerCity","") or "").strip(),
+                            "mail_state":   (a.get("OwnerState","") or "SC").strip(),
+                            "mail_zip":     (a.get("OwnerZip","") or "").strip(),
+                            "tms": t,
+                        })
+            except Exception as e:
+                log.debug("batch parcel lookup error: %s", e)
+            # Layer 22 — property/situs address
+            try:
+                r = self.session.get(ADDRESS_URL, params={
+                    "where": f"TMS IN ({inlist})",
+                    "outFields": "ADDRESS,CITY,STATE,ZIPCODE,TMS",
+                    "returnGeometry": "false", "f": "json",
+                }, timeout=20)
+                for f in r.json().get("features", []):
+                    a = f["attributes"]; t = str(a.get("TMS","") or "").strip()
+                    if t:
+                        out.setdefault(t, {}).update({
+                            "prop_address": (a.get("ADDRESS","") or "").strip(),
+                            "prop_city":    (a.get("CITY","") or "").strip(),
+                            "prop_state":   (a.get("STATE","SC") or "SC").strip(),
+                            "prop_zip":     str(a.get("ZIPCODE","") or "").strip(),
+                        })
+            except Exception as e:
+                log.debug("batch address lookup error: %s", e)
+            time.sleep(0.1)
+        return out
 
     def _query_parcels_by_name(self, owner_name: str) -> Optional[dict]:
         safe_name = owner_name.replace("'", "''")
@@ -376,6 +428,80 @@ def lookup_delinquent_tax_by_name(owner_name: str, session: requests.Session) ->
         }
     except Exception:
         return None
+
+
+def fetch_delinquent_tax(gis: "GISLookup") -> list:
+    """
+    Pull the full Horry County delinquent-tax parcel list as its own lead
+    category. This list is a static annual snapshot (county updates it ~once a
+    year), so records are NOT date-windowed and carry no recording date — they
+    are dated blank so they don't crowd out fresh Register-of-Deeds leads in the
+    newest-first view. Addresses are resolved in batch from each parcel's TMS.
+    """
+    sess = gis.session
+    raw, offset, page = [], 0, 1000
+    while True:
+        try:
+            r = sess.get(DELQ_TAX_URL, params={
+                "where": "1=1",
+                "outFields": "owner_name,new_owner_name,total_tax_due,tms,description,item_number",
+                "returnGeometry": "false", "f": "json",
+                "resultOffset": offset, "resultRecordCount": page,
+                "orderByFields": "objectid",
+            }, timeout=30)
+            feats = r.json().get("features", [])
+        except Exception as e:
+            log.error("Delinquent tax fetch error at offset %d: %s", offset, e)
+            break
+        if not feats:
+            break
+        raw.extend(feats)
+        if len(feats) < page:
+            break
+        offset += page
+        time.sleep(0.1)
+    log.info("Delinquent tax: pulled %d parcels", len(raw))
+
+    # Batch-resolve addresses by TMS
+    addr_map = gis.lookup_many_by_tms(
+        [str(f["attributes"].get("tms","") or "") for f in raw]
+    )
+
+    records = []
+    for f in raw:
+        a     = f["attributes"]
+        owner = (a.get("owner_name") or a.get("new_owner_name") or "").strip()
+        tms   = str(a.get("tms","") or "").strip()
+        addr  = addr_map.get(tms, {})
+        records.append({
+            "doc_num":        (a.get("item_number","") or "").strip(),
+            "doc_type":       "TAX",
+            "cat":            "TAX",
+            "cat_label":      "Delinquent Tax",
+            "filed":          "",   # static annual list — no recording date
+            "owner":          owner,
+            "grantee":        "",
+            "amount":         parse_amount(a.get("total_tax_due","")),
+            "legal":          (a.get("description","") or "").strip(),
+            "tms_legal":      tms,
+            "clerk_url":      (
+                f"{ACCLAIM_BASE}/search/SearchTypeName?directName={quote(owner)}"
+                if owner else DOCTYPE_URL
+            ),
+            "source":         "Delinquent Tax (Horry County GIS)",
+            "prop_address":   addr.get("prop_address",""),
+            "prop_city":      addr.get("prop_city",""),
+            "prop_state":     addr.get("prop_state","SC"),
+            "prop_zip":       addr.get("prop_zip",""),
+            "mail_address":   addr.get("mail_address",""),
+            "mail_city":      addr.get("mail_city",""),
+            "mail_state":     addr.get("mail_state","SC"),
+            "mail_zip":       addr.get("mail_zip",""),
+            "tms":            tms,
+            "delinquent_tax": (a.get("total_tax_due","") or ""),
+        })
+    log.info("Delinquent tax: built %d leads", len(records))
+    return records
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -797,9 +923,24 @@ async def main():
     log.info("Quality filter: %d -> %d kept (dropped %d corporate, %d no-address)",
              before, len(unique), dropped_corp, dropped_noaddr)
 
+    # ── Step 3c: Delinquent Tax leads (full annual list, NOT filtered) ──────
+    log.info("STEP 3c: Delinquent Tax parcels")
+    try:
+        tax_records = fetch_delinquent_tax(gis)
+    except Exception as e:
+        log.error("Delinquent tax error: %s", e, exc_info=True)
+        tax_records = []
+    for r in tax_records:
+        flags      = compute_flags(r)
+        r["flags"] = list(dict.fromkeys(flags))
+        r["score"] = compute_score(r, r["flags"])
+    unique = unique + tax_records
+    log.info("Combined total (ROD %d + tax %d) = %d",
+             len(kept), len(tax_records), len(unique))
+
     # Sort: NEWEST FILED FIRST, then HIGHEST SCORE within the same day.
-    # filed is normalized to YYYY-MM-DD, so reverse=True orders dates newest-first
-    # and breaks ties by score high-to-low.
+    # Tax records carry a blank filed date, so they sort below dated ROD leads
+    # in the default newest-first view and are best viewed via their filter.
     unique.sort(key=lambda r: (r.get("filed",""), r.get("score",0)), reverse=True)
 
     # ── Reliability guard: never overwrite good data with an empty scrape ──
@@ -816,7 +957,7 @@ async def main():
 
     payload = {
         "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS (v5)",
+        "source":       "Horry County Register of Deeds + GIS (v6)",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(unique),
         "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
