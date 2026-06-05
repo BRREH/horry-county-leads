@@ -697,7 +697,9 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); }
 function exportCSV() {
   const cols = ['First Name','Last Name','Mailing Address','Mailing City','Mailing State','Mailing Zip',
     'Property Address','Property City','Property State','Property Zip',
+    'Phone 1','Phone 2','Email 1','Email 2',
     'Lead Type','Document Type','Date Filed','Document Number','Amount/Debt Owed',
+    'TMS Parcel','Delinquent Tax',
     'Seller Score','Motivated Seller Flags','Source','Public Records URL'];
   const rows = [cols.join(',')];
   filtered.forEach(r => {
@@ -707,9 +709,12 @@ function exportCSV() {
       csv(parts[0]||''), csv(parts.slice(1).join(' ')||''),
       csv(r.mail_address||''), csv(r.mail_city||''), csv(r.mail_state||'SC'), csv(r.mail_zip||''),
       csv(r.prop_address||''), csv(r.prop_city||''), csv(r.prop_state||'SC'), csv(r.prop_zip||''),
+      csv(r.phone1||''), csv(r.phone2||''), csv(r.email1||''), csv(r.email2||''),
       csv(r.cat_label||''), csv(r.cat||''),
       csv(r.filed||''), csv(r.doc_num||''),
-      r.amount||'', r.score||0,
+      r.amount||'',
+      csv(r.tms||''), csv(r.delinquent_tax||''),
+      r.score||0,
       csv((r.flags||[]).join('; ')),
       csv('Horry County Register of Deeds'),
       csv(r.owner ? `https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=${encodeURIComponent(r.owner)}` : ''),
@@ -730,8 +735,9 @@ function copySingle(id) {
   const row = [parts[0]||'', parts.slice(1).join(' ')||'',
     r.mail_address||'', r.mail_city||'', r.mail_state||'SC', r.mail_zip||'',
     r.prop_address||'', r.prop_city||'', r.prop_state||'SC', r.prop_zip||'',
+    r.phone1||'', r.phone2||'', r.email1||'', r.email2||'',
     r.cat_label||'', r.cat||'', r.filed||'', r.doc_num||'',
-    r.amount||'', r.score||0, (r.flags||[]).join('; '),
+    r.amount||'', r.tms||'', r.delinquent_tax||'', r.score||0, (r.flags||[]).join('; '),
     'Horry County Register of Deeds',
     r.owner ? `https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=${encodeURIComponent(r.owner)}` : ''
   ].join('\t');
