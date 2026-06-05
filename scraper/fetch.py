@@ -1,6 +1,14 @@
 """
-Horry County SC — Complete Lead Scraper — UPDATED v3
+Horry County SC — Complete Lead Scraper — UPDATED v4
 ========================================================
+CHANGES in v4:
+  1. Lead-quality filters added (applied right before save):
+     - Business/corporate owners EXCLUDED (LLC, INC, HOA, PROPERTIES, etc.)
+     - Records with NO property address EXCLUDED
+  2. Probate coverage broadened (DEED OF DISTRIBUTION, PERSONAL REPRESENTATIVE)
+  3. Diagnostic logging: logs every doc-type description AcclaimWeb returns plus
+     the unclassified ones, so it is clear whether LP / JUD / PRO are present
+
 CHANGES in v3:
   1. Code Violations removed entirely (EnerGov is staff-only / unscrapable)
      - Removed CODE VIOLATION keyword, flag, and scoring bump
@@ -42,6 +50,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 import requests
 from bs4 import BeautifulSoup
@@ -88,8 +97,30 @@ DOC_TYPE_KEYWORDS = [
     ("PROBATE",                "PRO",     "Probate Document"),
     ("LETTERS TEST",           "PRO",     "Probate Document"),
     ("LETTERS OF ADMIN",       "PRO",     "Probate Document"),
+    ("DEED OF DISTRIBUTION",   "PRO",     "Probate / Estate Deed"),
+    ("PERSONAL REPRESENTATIVE","PRO",     "Probate Document"),
     ("NOTICE OF COMMENCEMENT", "NOC",     "Notice of Commencement"),
 ]
+
+# Business / corporate owner patterns. Records whose contact owner matches any
+# of these are FILTERED OUT of the final lead list (we want individual
+# homeowners, not entities). ESTATE and TRUST are intentionally NOT included:
+# "estate of ..." are probate leads, and trusts are often individual sellers.
+BUSINESS_RE = re.compile(
+    r"\b("
+    r"LLC|L L C|LLP|PLLC|INC|INCORPORATED|CORP|CORPORATION|LTD|"
+    r"COMPANY|ASSOCIATION|ASSOC|HOA|PROPERTIES|ENTERPRISE|ENTERPRISES|"
+    r"HOLDINGS|INVESTMENT|INVESTMENTS|GROUP|PARTNERS|PARTNERSHIP|"
+    r"BANK|CREDIT UNION|MANAGEMENT|REALTY|DEVELOPMENT|BUILDERS|"
+    r"CONSTRUCTION|FUND|CAPITAL|VENTURES|MORTGAGE|FINANCIAL|RENTALS|SERVICES"
+    r")\b"
+)
+
+
+def is_business_entity(name: str) -> bool:
+    if not name:
+        return False
+    return bool(BUSINESS_RE.search(name.upper()))
 
 
 def date_range_str():
@@ -110,13 +141,21 @@ def parse_amount(text):
 
 
 def normalize_date(raw):
-    for fmt in ("%m/%d/%Y %I:%M:%S %p", "%m/%d/%Y %H:%M:%S",
-                "%m/%d/%Y", "%Y-%m-%d"):
+    if not raw:
+        return ""
+    s = str(raw).strip()
+    # Drop any time component first (e.g. "6/3/2026 1:23 PM" -> "6/3/2026"),
+    # then parse the date. AcclaimWeb's RecordDate uses mixed time formats
+    # (some with seconds, some without); the old version fell through on the
+    # no-seconds case and produced junk like "6/3/2026 1". Splitting off the
+    # time guarantees a clean YYYY-MM-DD for the sort and the date flags.
+    date_part = s.split(" ", 1)[0].split("T", 1)[0]
+    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y", "%Y/%m/%d"):
         try:
-            return datetime.strptime(str(raw).strip()[:19], fmt).strftime("%Y-%m-%d")
+            return datetime.strptime(date_part, fmt).strftime("%Y-%m-%d")
         except Exception:
             pass
-    return str(raw).strip()[:10]
+    return date_part
 
 
 def classify_doc(description: str) -> Optional[tuple]:
@@ -368,6 +407,9 @@ def extract_address_from_legal(legal: str) -> str:
 
 def parse_acclaim_csv(raw: str) -> list:
     records = []
+    from collections import Counter
+    all_types    = Counter()   # every DocTypeDescription seen in the export
+    unclassified = Counter()   # descriptions that matched no keyword (dropped)
     try:
         raw    = raw.lstrip('\ufeff')
         reader = csv.DictReader(io.StringIO(raw))
@@ -379,8 +421,10 @@ def parse_acclaim_csv(raw: str) -> list:
             try:
                 description = (row.get("DocTypeDescription","") or "").strip()
                 comments    = (row.get("Comments","") or "").strip()
+                all_types[description] += 1
                 classified  = classify_doc(description) or classify_doc(comments)
                 if not classified:
+                    unclassified[description] += 1
                     continue
 
                 cat, cat_label = classified
@@ -426,6 +470,14 @@ def parse_acclaim_csv(raw: str) -> list:
     except Exception as e:
         log.error("CSV parse error: %s", e)
 
+    # Diagnostic: show exactly what AcclaimWeb returned so we can confirm whether
+    # LP / JUD / PRO documents are present (possibly under unexpected names).
+    log.info("ALL doc-types seen (top 40): %s", dict(all_types.most_common(40)))
+    if unclassified:
+        log.info("UNCLASSIFIED doc-types dropped (top 40): %s",
+                 dict(unclassified.most_common(40)))
+    by_cat = Counter(r.get("cat","?") for r in records)
+    log.info("Classified by category: %s", dict(by_cat))
     log.info("Classified %d Acclaim records", len(records))
     return records
 
@@ -699,6 +751,23 @@ async def main():
         r["flags"] = flags
         r["score"] = compute_score(r, flags)
 
+    # ── Step 3b: Lead-quality filters ─────────────────────────────────────
+    # Drop (a) business/corporate owners and (b) records with no property
+    # address — neither is usable as a direct-mail seller lead.
+    before = len(unique)
+    kept, dropped_corp, dropped_noaddr = [], 0, 0
+    for r in unique:
+        if is_business_entity(r.get("owner","")):
+            dropped_corp += 1
+            continue
+        if not r.get("prop_address","").strip():
+            dropped_noaddr += 1
+            continue
+        kept.append(r)
+    unique = kept
+    log.info("Quality filter: %d -> %d kept (dropped %d corporate, %d no-address)",
+             before, len(unique), dropped_corp, dropped_noaddr)
+
     # Sort: NEWEST FILED FIRST, then HIGHEST SCORE within the same day.
     # filed is normalized to YYYY-MM-DD, so reverse=True orders dates newest-first
     # and breaks ties by score high-to-low.
@@ -706,7 +775,9 @@ async def main():
 
     # ── Reliability guard: never overwrite good data with an empty scrape ──
     if not unique:
-        log.error("Scrape produced 0 records — likely an AcclaimWeb/export failure.")
+        log.error("0 records left after scrape + quality filters.")
+        log.error("Either the AcclaimWeb export failed, or nothing in this "
+                  "window had a non-corporate owner AND a property address.")
         log.error("Preserving existing records.json and failing the run.")
         sys.exit(1)
 
@@ -731,10 +802,10 @@ async def main():
     fieldnames = [
         "First Name","Last Name","Mailing Address","Mailing City",
         "Mailing State","Mailing Zip","Property Address","Property City",
-        "Property State","Property Zip","Lead Type","Document Type",
-        "Date Filed","Document Number","Amount/Debt Owed","TMS Parcel",
-        "Delinquent Tax","Seller Score","Motivated Seller Flags",
-        "Source","Public Records URL",
+        "Property State","Property Zip","Phone 1","Phone 2","Email 1","Email 2",
+        "Lead Type","Document Type","Date Filed","Document Number",
+        "Amount/Debt Owed","TMS Parcel","Delinquent Tax","Seller Score",
+        "Motivated Seller Flags","Source","Public Records URL",
     ]
     csv_path = repo/"data"/"leads_export.csv"
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
@@ -754,6 +825,10 @@ async def main():
                 "Property City":         r.get("prop_city",""),
                 "Property State":        r.get("prop_state","SC"),
                 "Property Zip":          r.get("prop_zip",""),
+                "Phone 1":               r.get("phone1",""),
+                "Phone 2":               r.get("phone2",""),
+                "Email 1":               r.get("email1",""),
+                "Email 2":               r.get("email2",""),
                 "Lead Type":             r.get("cat_label",""),
                 "Document Type":         r.get("cat",""),
                 "Date Filed":            r.get("filed",""),
@@ -763,8 +838,12 @@ async def main():
                 "Delinquent Tax":        r.get("delinquent_tax",""),
                 "Seller Score":          r.get("score",""),
                 "Motivated Seller Flags": "; ".join(r.get("flags",[])),
-                "Source":                r.get("source","Horry County"),
-                "Public Records URL":    r.get("clerk_url",""),
+                "Source":                "Horry County Register of Deeds",
+                "Public Records URL":    (
+                    f"https://acclaimweb.horrycounty.org/AcclaimWeb/"
+                    f"search/SearchTypeName?directName={quote(owner)}"
+                    if owner else ""
+                ),
             })
     log.info("GHL CSV → %s (%d rows)", csv_path, len(unique))
 
