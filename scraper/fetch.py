@@ -1,6 +1,17 @@
 """
-Horry County SC — Complete Lead Scraper — UPDATED v4
+Horry County SC — Complete Lead Scraper — UPDATED v5
 ========================================================
+CHANGES in v5 (address accuracy — fixes the "Wyndham cluster" bug where many
+different people all got one lienholder's address):
+  1. Removed the lienholder fallback. When the actual contact can't be found
+     in the parcel data, the address is left BLANK instead of borrowing the
+     grantor/lienholder's parcel.
+  2. Name lookups must resolve to EXACTLY ONE parcel. Zero matches (people who
+     don't own property, e.g. timeshare holders) or multiple matches (common
+     names) return nothing instead of guessing a wrong/neighbor parcel.
+  3. A corporate/lienholder name is never used as an address source.
+  4. Output now stamped "(v5)" so the running version is verifiable.
+
 CHANGES in v4:
   1. Lead-quality filters added (applied right before save):
      - Business/corporate owners EXCLUDED (LLC, INC, HOA, PROPERTIES, etc.)
@@ -268,7 +279,10 @@ class GISLookup:
                 "returnGeometry": "false", "f": "json",
             }, timeout=10)
             features = resp.json().get("features", [])
-            if not features:
+            # Only trust a name lookup that resolves to EXACTLY one parcel.
+            # 0 = not a property owner (e.g. timeshare/lien-only individuals);
+            # >1 = ambiguous (common name) and we must not guess a neighbor.
+            if len(features) != 1:
                 return None
             attrs = features[0]["attributes"]
             tms   = attrs.get("TMS", "")
@@ -685,9 +699,18 @@ async def main():
         )
         contact = grantee if (use_grantee and grantee) else owner
 
+        # Look up ONLY the actual contact (the distressed party). Do NOT fall
+        # back to the grantor/lienholder — that is what stamped Wyndham's
+        # corporate parcel onto 30 different timeshare owners. If the contact
+        # isn't a property owner, leave the address blank (the no-address
+        # filter will then drop the record).
         addr_data = addr_cache.get(contact)
-        if not addr_data and contact != owner:
-            addr_data = addr_cache.get(owner)
+
+        # Hard guard: never enrich from a corporate / lienholder name. Its
+        # parcel is not the individual's address (this is what produced the
+        # Wyndham cluster — 30 people stamped with Wyndham's Orlando office).
+        if is_business_entity(contact):
+            addr_data = None
 
         # ── TMS fallback for LP records ──────────────────────────────────
         if not addr_data and cat == "LP":
@@ -787,7 +810,7 @@ async def main():
 
     payload = {
         "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS (v3)",
+        "source":       "Horry County Register of Deeds + GIS (v4)",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(unique),
         "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
