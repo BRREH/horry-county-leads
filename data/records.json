@@ -1,12 +1,12 @@
 {
-  "fetched_at": "2026-06-05T16:04:41.342721",
-  "source": "Horry County Register of Deeds + GIS (v4)",
+  "fetched_at": "2026-06-05T21:07:50.867044",
+  "source": "Horry County Register of Deeds + GIS (v5)",
   "date_range": {
     "start": "05/22/2026",
     "end": "06/05/2026"
   },
-  "total": 74,
-  "with_address": 74,
+  "total": 76,
+  "with_address": 76,
   "records": [
     {
       "doc_num": "306/1234",
@@ -99,6 +99,66 @@
       "score": 60
     },
     {
+      "doc_num": "306/1405",
+      "doc_type": "LN",
+      "filed": "2026-06-05",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "LOW LINDA A",
+      "grantee": "HILTON GRAND VACATIONS MANAGEMENT LLC",
+      "amount": null,
+      "legal": "",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=HILTON%20GRAND%20VACATIONS%20MANAGEMENT%20LLC",
+      "source": "Register of Deeds",
+      "prop_address": "609 28TH AVE S",
+      "prop_city": "North Myrtle Beach",
+      "prop_state": "SC",
+      "prop_zip": "29582",
+      "mail_address": "609 28TH AVE S APT C",
+      "mail_city": "N MYRTLE BEACH",
+      "mail_state": "SC",
+      "mail_zip": "29582",
+      "delinquent_tax": "",
+      "tms": "1560326083",
+      "flags": [
+        "HOA lien",
+        "New this week"
+      ],
+      "score": 60
+    },
+    {
+      "doc_num": "306/1335",
+      "doc_type": "LN",
+      "filed": "2026-06-05",
+      "cat": "LN",
+      "cat_label": "HOA/Condo Lien",
+      "owner": "JOSEPH HOWARD",
+      "grantee": "HILTON GRAND VACATIONS MANAGEMENT LLC",
+      "amount": null,
+      "legal": "",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=HILTON%20GRAND%20VACATIONS%20MANAGEMENT%20LLC",
+      "source": "Register of Deeds",
+      "prop_address": "1308 ROYAL DEVON DR",
+      "prop_city": "Surfside Beach",
+      "prop_state": "SC",
+      "prop_zip": "29575",
+      "mail_address": "1308 ROYAL DEVON DR",
+      "mail_city": "MYRTLE BEACH",
+      "mail_state": "SC",
+      "mail_zip": "29575",
+      "delinquent_tax": "",
+      "tms": "1862101021",
+      "flags": [
+        "HOA lien",
+        "New this week"
+      ],
+      "score": 60
+    },
+    {
       "doc_num": "306/1264",
       "doc_type": "LN",
       "filed": "2026-06-05",
@@ -160,10 +220,10 @@
     },
     {
       "doc_num": "5087/1806",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-05",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "JOHNSON HENRY CARLOS",
       "grantee": "JOHNSON FRANCES CORA LEE",
       "amount": null,
@@ -183,7 +243,7 @@
       "delinquent_tax": "",
       "tms": "1370519009",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
@@ -639,71 +699,11 @@
       "score": 60
     },
     {
-      "doc_num": "5087/64",
-      "doc_type": "PRO",
-      "filed": "2026-06-04",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
-      "owner": "HORNBURG EMIL G III",
-      "grantee": "WILSON CLYDE L III",
-      "amount": null,
-      "legal": "DEED OF DISTRIBUTION",
-      "tms_legal": "",
-      "addr_legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WILSON%20CLYDE%20L%20III",
-      "source": "Register of Deeds",
-      "prop_address": "5052 WATERGATE DR",
-      "prop_city": "Myrtle Beach",
-      "prop_state": "SC",
-      "prop_zip": "29588",
-      "mail_address": "5052 WATERGATE DR",
-      "mail_city": "MYRTLE BEACH",
-      "mail_state": "SC",
-      "mail_zip": "29588",
-      "delinquent_tax": "",
-      "tms": "1801702022",
-      "flags": [
-        "Probate / estate",
-        "New this week"
-      ],
-      "score": 60
-    },
-    {
-      "doc_num": "5087/1107",
-      "doc_type": "PRO",
-      "filed": "2026-06-04",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
-      "owner": "GREEN ANNIE MAE",
-      "grantee": "GREEN RETHA L",
-      "amount": null,
-      "legal": "DEED OF DISTRIBUTION",
-      "tms_legal": "",
-      "addr_legal": "",
-      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=GREEN%20RETHA%20L",
-      "source": "Register of Deeds",
-      "prop_address": "261 GREEN VILLAGE RD",
-      "prop_city": "Little River",
-      "prop_state": "SC",
-      "prop_zip": "29566",
-      "mail_address": "261 GREEN VILLAGE RD",
-      "mail_city": "LITTLE RIVER",
-      "mail_state": "SC",
-      "mail_zip": "29566",
-      "delinquent_tax": "",
-      "tms": "1300008167",
-      "flags": [
-        "Probate / estate",
-        "New this week"
-      ],
-      "score": 60
-    },
-    {
       "doc_num": "5087/339",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-04",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "PAUGH JORDAN MARSHALL",
       "grantee": "PAUGH PATRICK R",
       "amount": null,
@@ -723,7 +723,67 @@
       "delinquent_tax": "",
       "tms": "1081701051",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
+        "New this week"
+      ],
+      "score": 60
+    },
+    {
+      "doc_num": "5087/64",
+      "doc_type": "INH",
+      "filed": "2026-06-04",
+      "cat": "INH",
+      "cat_label": "Inherited",
+      "owner": "HORNBURG EMIL G III",
+      "grantee": "WILSON CLYDE L III",
+      "amount": null,
+      "legal": "DEED OF DISTRIBUTION",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=WILSON%20CLYDE%20L%20III",
+      "source": "Register of Deeds",
+      "prop_address": "5052 WATERGATE DR",
+      "prop_city": "Myrtle Beach",
+      "prop_state": "SC",
+      "prop_zip": "29588",
+      "mail_address": "5052 WATERGATE DR",
+      "mail_city": "MYRTLE BEACH",
+      "mail_state": "SC",
+      "mail_zip": "29588",
+      "delinquent_tax": "",
+      "tms": "1801702022",
+      "flags": [
+        "Inherited / estate",
+        "New this week"
+      ],
+      "score": 60
+    },
+    {
+      "doc_num": "5087/1107",
+      "doc_type": "INH",
+      "filed": "2026-06-04",
+      "cat": "INH",
+      "cat_label": "Inherited",
+      "owner": "GREEN ANNIE MAE",
+      "grantee": "GREEN RETHA L",
+      "amount": null,
+      "legal": "DEED OF DISTRIBUTION",
+      "tms_legal": "",
+      "addr_legal": "",
+      "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=GREEN%20RETHA%20L",
+      "source": "Register of Deeds",
+      "prop_address": "261 GREEN VILLAGE RD",
+      "prop_city": "Little River",
+      "prop_state": "SC",
+      "prop_zip": "29566",
+      "mail_address": "261 GREEN VILLAGE RD",
+      "mail_city": "LITTLE RIVER",
+      "mail_state": "SC",
+      "mail_zip": "29566",
+      "delinquent_tax": "",
+      "tms": "1300008167",
+      "flags": [
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
@@ -820,10 +880,10 @@
     },
     {
       "doc_num": "5086/1917",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-03",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "HARBIN ALYSSA",
       "grantee": "HARBIN AMY LOUISE",
       "amount": null,
@@ -843,17 +903,17 @@
       "delinquent_tax": "",
       "tms": "1291801047",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
     },
     {
       "doc_num": "5086/1940",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-03",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "STRICKLAND JOLANE H",
       "grantee": "STRICKLAND JOSEPH MORRIS",
       "amount": null,
@@ -873,17 +933,17 @@
       "delinquent_tax": "",
       "tms": "0950001037",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
     },
     {
       "doc_num": "5086/2976",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-03",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "PRINGLE BRENDA",
       "grantee": "PRINGLE SAMUEL MAYES JR",
       "amount": null,
@@ -903,17 +963,17 @@
       "delinquent_tax": "",
       "tms": "1912601064",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
     },
     {
       "doc_num": "5086/2994",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-03",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "PRINGLE BRENDA",
       "grantee": "PRINGLE SAMUEL MAYES JR",
       "amount": null,
@@ -933,7 +993,7 @@
       "delinquent_tax": "",
       "tms": "1912601064",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
@@ -1180,10 +1240,10 @@
     },
     {
       "doc_num": "5085/3079",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-02",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "YOUNG MICHAEL B",
       "grantee": "YOUNG NANCY J",
       "amount": null,
@@ -1203,17 +1263,17 @@
       "delinquent_tax": "",
       "tms": "1912202025",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
     },
     {
       "doc_num": "5085/3287",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-02",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "ELVINGTON MARGARET GOLDA",
       "grantee": "ELVINGTON MARY ANN",
       "amount": null,
@@ -1233,17 +1293,17 @@
       "delinquent_tax": "",
       "tms": "0050001015",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
     },
     {
       "doc_num": "5085/3372",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-02",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "KENNEY GEORGIA",
       "grantee": "DAWSON THOMAS JACKSON",
       "amount": null,
@@ -1252,7 +1312,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=DAWSON%20THOMAS%20JACKSON",
       "source": "Register of Deeds",
-      "prop_address": "257 DAWSON BLUFF PL",
+      "prop_address": "217 DAWSON BLUFF PL",
       "prop_city": "Conway",
       "prop_state": "SC",
       "prop_zip": "29526",
@@ -1263,7 +1323,7 @@
       "delinquent_tax": "",
       "tms": "0840003084",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
@@ -1360,10 +1420,10 @@
     },
     {
       "doc_num": "5085/2412",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-01",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "THOMAS OXLEY F",
       "grantee": "THOMAS RUTH RAINEY",
       "amount": null,
@@ -1383,17 +1443,17 @@
       "delinquent_tax": "",
       "tms": "1360806005",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
     },
     {
       "doc_num": "5085/1424",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-01",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "CHESTNUT ARCHIE ALBERT",
       "grantee": "CHESTNUT GRADY B",
       "amount": null,
@@ -1402,7 +1462,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=CHESTNUT%20GRADY%20B",
       "source": "Register of Deeds",
-      "prop_address": "3075 HWY 19",
+      "prop_address": "3095 HWY 19",
       "prop_city": "Conway",
       "prop_state": "SC",
       "prop_zip": "29526",
@@ -1413,17 +1473,17 @@
       "delinquent_tax": "",
       "tms": "1110003112",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
     },
     {
       "doc_num": "5085/2430",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-06-01",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "BIALECKI MAUREEN",
       "grantee": "BIALECKI RAYMOND D",
       "amount": null,
@@ -1443,7 +1503,7 @@
       "delinquent_tax": "",
       "tms": "1560702013",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
@@ -1492,7 +1552,7 @@
       "addr_legal": "",
       "clerk_url": "https://acclaimweb.horrycounty.org/AcclaimWeb/search/SearchTypeName?directName=GRAND%20STRAND%20WATER%20AND%20SEWER%20AUTHORITY",
       "source": "Register of Deeds",
-      "prop_address": "202 RAINBOW RD",
+      "prop_address": "206 RAINBOW RD",
       "prop_city": "Conway",
       "prop_state": "SC",
       "prop_zip": "29526",
@@ -1540,10 +1600,10 @@
     },
     {
       "doc_num": "5084/3436",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-29",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "SPIVEY CODY MCKENLEY",
       "grantee": "BENNETT MARIE K",
       "amount": null,
@@ -1563,17 +1623,17 @@
       "delinquent_tax": "",
       "tms": "0690001247",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
     },
     {
       "doc_num": "5085/633",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-29",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "BOEHLE DEBRA A",
       "grantee": "BENNETT MARGARET A",
       "amount": null,
@@ -1593,17 +1653,17 @@
       "delinquent_tax": "",
       "tms": "1903301083",
       "flags": [
-        "Probate / estate",
+        "Inherited / estate",
         "New this week"
       ],
       "score": 60
     },
     {
       "doc_num": "5084/1568",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-28",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "HARRISON ALAN GRENVILLE",
       "grantee": "HARRISON ANNE M",
       "amount": null,
@@ -1623,16 +1683,16 @@
       "delinquent_tax": "",
       "tms": "1392301018",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5084/2791",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-28",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "KNOTTS JAMES",
       "grantee": "RIGGS LINA",
       "amount": null,
@@ -1652,16 +1712,16 @@
       "delinquent_tax": "",
       "tms": "1712101025",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5084/2117",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-28",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "DELL GEORGIANNA",
       "grantee": "ALONGI JOHN LUCIANNO",
       "amount": null,
@@ -1681,7 +1741,7 @@
       "delinquent_tax": "",
       "tms": "1301801081",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
@@ -1861,10 +1921,10 @@
     },
     {
       "doc_num": "5083/2806",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-27",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "HARRELSON L DWAYNE",
       "grantee": "HARRELSON CHARLOTTE H",
       "amount": null,
@@ -1884,16 +1944,16 @@
       "delinquent_tax": "",
       "tms": "0400001110",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5083/2809",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-27",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "HARRELSON L DWAYNE",
       "grantee": "HARRELSON CHARLOTTE H",
       "amount": null,
@@ -1913,16 +1973,16 @@
       "delinquent_tax": "",
       "tms": "0400001110",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5083/3193",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-27",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "JACKSON VIRGINIA RUEDGER",
       "grantee": "RUEDGER VIRGINIA PEEPLES YARBOUGH",
       "amount": null,
@@ -1942,16 +2002,16 @@
       "delinquent_tax": "",
       "tms": "1943701434",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5083/831",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-26",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "SCANDRETT CAMERON",
       "grantee": "SCANDRETT ELIZABETH MARIE",
       "amount": null,
@@ -1971,16 +2031,16 @@
       "delinquent_tax": "",
       "tms": "0521701015",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5083/1014",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-26",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "VOELKL SHERRY B",
       "grantee": "VOELKL RAYMOND T",
       "amount": null,
@@ -2000,16 +2060,16 @@
       "delinquent_tax": "",
       "tms": "1861901134",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5083/786",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-26",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "ZATTAU SHEILA",
       "grantee": "ZATTAU DONALD MARTIN JR",
       "amount": null,
@@ -2029,7 +2089,7 @@
       "delinquent_tax": "",
       "tms": "1260001272",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
@@ -2093,10 +2153,10 @@
     },
     {
       "doc_num": "5082/2431",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-22",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "MCLEOD SONJA",
       "grantee": "SKODRAS LOUIS NICHOLAS",
       "amount": null,
@@ -2116,16 +2176,16 @@
       "delinquent_tax": "",
       "tms": "1911801027",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5082/2639",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-22",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "GREEN DOUGLAS WILLIAM",
       "grantee": "GREEN MARTHA J",
       "amount": null,
@@ -2145,16 +2205,16 @@
       "delinquent_tax": "",
       "tms": "1421901106",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5082/2444",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-22",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "FIFE BETH WILLARD",
       "grantee": "FIFE RONALD THOMAS",
       "amount": null,
@@ -2174,16 +2234,16 @@
       "delinquent_tax": "",
       "tms": "1660106011",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     },
     {
       "doc_num": "5082/1073",
-      "doc_type": "PRO",
+      "doc_type": "INH",
       "filed": "2026-05-22",
-      "cat": "PRO",
-      "cat_label": "Probate / Estate Deed",
+      "cat": "INH",
+      "cat_label": "Inherited",
       "owner": "JOHNSON JORDAN F",
       "grantee": "JOHNSON DOUGLAS WILLIAM",
       "amount": null,
@@ -2203,7 +2263,7 @@
       "delinquent_tax": "",
       "tms": "1101801029",
       "flags": [
-        "Probate / estate"
+        "Inherited / estate"
       ],
       "score": 45
     }
