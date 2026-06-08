@@ -1,5 +1,5 @@
 """
-Horry County SC — Complete Lead Scraper — UPDATED v8
+Horry County SC — Complete Lead Scraper — UPDATED v9
 ========================================================
 CHANGES in v5 (address accuracy — fixes the "Wyndham cluster" bug where many
 different people all got one lienholder's address):
@@ -441,17 +441,24 @@ def fetch_delinquent_tax(gis: "GISLookup") -> list:
     sess = gis.session
     raw, offset, page = [], 0, 1000
     while True:
-        try:
-            r = sess.get(DELQ_TAX_URL, params={
-                "where": "1=1",
-                "outFields": "owner_name,new_owner_name,total_tax_due,tms,description,item_number",
-                "returnGeometry": "false", "f": "json",
-                "resultOffset": offset, "resultRecordCount": page,
-                "orderByFields": "objectid",
-            }, timeout=30)
-            feats = r.json().get("features", [])
-        except Exception as e:
-            log.error("Delinquent tax fetch error at offset %d: %s", offset, e)
+        feats = None
+        for attempt in range(3):
+            try:
+                r = sess.get(DELQ_TAX_URL, params={
+                    "where": "1=1",
+                    "outFields": "owner_name,new_owner_name,total_tax_due,tms,description,item_number",
+                    "returnGeometry": "false", "f": "json",
+                    "resultOffset": offset, "resultRecordCount": page,
+                    "orderByFields": "objectid",
+                }, timeout=30)
+                feats = r.json().get("features", [])
+                break
+            except Exception as e:
+                log.warning("Delinquent tax fetch error at offset %d (attempt %d/3): %s",
+                            offset, attempt+1, e)
+                time.sleep(2 * (attempt + 1))
+        if feats is None:
+            log.error("Delinquent tax: giving up at offset %d after 3 attempts", offset)
             break
         if not feats:
             break
@@ -502,6 +509,23 @@ def fetch_delinquent_tax(gis: "GISLookup") -> list:
         })
     log.info("Delinquent tax: built %d leads", len(records))
     return records
+
+
+def load_previous_tax_records() -> list:
+    """Return the TAX-category records from the existing records.json, so a
+    transient tax-service outage doesn't drop the whole category. The tax list
+    is a static annual snapshot, so reusing the last good pull is safe."""
+    repo = Path(__file__).parent.parent
+    for path in (repo/"dashboard"/"records.json", repo/"data"/"records.json"):
+        try:
+            if path.exists():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                tax = [r for r in data.get("records", []) if r.get("cat") == "TAX"]
+                if tax:
+                    return tax
+        except Exception as e:
+            log.debug("Could not read previous tax records from %s: %s", path, e)
+    return []
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -930,6 +954,27 @@ async def main():
     except Exception as e:
         log.error("Delinquent tax error: %s", e, exc_info=True)
         tax_records = []
+
+    # Guard against a transient tax-service failure silently wiping the whole
+    # category. The list is a static annual snapshot, so if we got nothing but
+    # the service still reports records, reuse last run's tax leads.
+    if not tax_records:
+        try:
+            cnt = int(gis.session.get(DELQ_TAX_URL, params={
+                "where": "1=1", "returnCountOnly": "true", "f": "json",
+            }, timeout=15).json().get("count", 0))
+        except Exception:
+            cnt = 0
+        if cnt > 0:
+            prev = load_previous_tax_records()
+            if prev:
+                log.warning("Tax pull empty but service has %d records — "
+                            "carrying forward %d tax leads from last run", cnt, len(prev))
+                tax_records = prev
+            else:
+                log.error("Tax pull empty (service has %d) and no previous tax "
+                          "leads to carry forward", cnt)
+
     for r in tax_records:
         flags      = compute_flags(r)
         r["flags"] = list(dict.fromkeys(flags))
@@ -950,6 +995,46 @@ async def main():
     log.info("Combined total (ROD %d + tax %d) = %d",
              len(kept), len(tax_records), len(unique))
 
+    # ── Final dedup: one lead per OWNER + PARCEL ──────────────────────────
+    # The county often records several documents against the same parcel
+    # (e.g. two Deeds of Distribution back-to-back), and a parcel can appear
+    # more than once on the tax list. Keying on document number lets those
+    # through as duplicate rows. Key on owner + TMS instead (owner + property
+    # address when no TMS), so the same person on the same property is ONE
+    # lead no matter how many instruments exist. Flags/score are merged so no
+    # signal is lost when two records collapse.
+    def _dedup_key(r):
+        owner = (r.get("owner","") or "").strip().upper()
+        tms   = str(r.get("tms","") or "").strip()
+        if owner and tms:
+            return ("T", owner, tms)
+        prop = (r.get("prop_address","") or "").strip().upper()
+        if owner and prop:
+            return ("A", owner, prop)
+        return ("D", owner, r.get("cat",""), r.get("doc_num",""))
+
+    merged, order = {}, []
+    for r in unique:
+        k = _dedup_key(r)
+        if k not in merged:
+            merged[k] = r
+            order.append(k)
+        else:
+            keep = merged[k]
+            keep["flags"] = list(dict.fromkeys(
+                (keep.get("flags",[]) or []) + (r.get("flags",[]) or [])
+            ))
+            keep["score"] = max(keep.get("score",0), r.get("score",0))
+            if not keep.get("amount") and r.get("amount"):
+                keep["amount"] = r["amount"]
+            if not (keep.get("prop_address","") or "").strip() \
+               and (r.get("prop_address","") or "").strip():
+                for f in ("prop_address","prop_city","prop_state","prop_zip"):
+                    keep[f] = r.get(f, keep.get(f,""))
+    removed = len(unique) - len(merged)
+    unique  = [merged[k] for k in order]
+    log.info("Final dedup: removed %d duplicate lead(s) -> %d unique", removed, len(unique))
+
     # Sort: NEWEST FILED FIRST, then HIGHEST SCORE within the same day.
     # Tax records carry a blank filed date, so they sort below dated ROD leads
     # in the default newest-first view and are best viewed via their filter.
@@ -969,7 +1054,7 @@ async def main():
 
     payload = {
         "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS (v8)",
+        "source":       "Horry County Register of Deeds + GIS (v9)",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(unique),
         "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
