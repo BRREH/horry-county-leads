@@ -415,6 +415,13 @@ a.view-link:hover { text-decoration: underline; }
       <button class="filter-btn" data-flag="Probate / estate" onclick="setFlag(this,'Probate / estate')"><span class="filter-label">Probate / Estate</span></button>
       <button class="filter-btn" data-flag="LLC / corp owner" onclick="setFlag(this,'LLC / corp owner')"><span class="filter-label">LLC / Corp Owner</span></button>
       <button class="filter-btn" data-flag="New this week" onclick="setFlag(this,'New this week')"><span class="filter-label">New This Week</span></button>
+      <button class="filter-btn" data-flag="Tax delinquent" onclick="setFlag(this,'Tax delinquent')"><span class="filter-label">Tax Delinquent</span></button>
+      <button class="filter-btn" data-flag="Inherited / estate" onclick="setFlag(this,'Inherited / estate')"><span class="filter-label">Inherited / Estate</span></button>
+      <button class="filter-btn" data-flag="Out-of-state owner" onclick="setFlag(this,'Out-of-state owner')"><span class="filter-label">Out-of-State Owner</span></button>
+      <button class="filter-btn" data-flag="Absentee owner" onclick="setFlag(this,'Absentee owner')"><span class="filter-label">Absentee Owner</span></button>
+      <button class="filter-btn" data-flag="Tax debt &gt;$50k" onclick="setFlag(this,'Tax debt >$50k')"><span class="filter-label">Tax Debt &gt;$50k</span></button>
+      <button class="filter-btn" data-flag="Tax debt &gt;$25k" onclick="setFlag(this,'Tax debt >$25k')"><span class="filter-label">Tax Debt &gt;$25k</span></button>
+      <button class="filter-btn" data-flag="Tax debt &gt;$10k" onclick="setFlag(this,'Tax debt >$10k')"><span class="filter-label">Tax Debt &gt;$10k</span></button>
     </div>
 
   </aside>
@@ -426,8 +433,8 @@ a.view-link:hover { text-decoration: underline; }
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="Search owner, document number, legal description…" oninput="applyFilters()">
       <select id="sortSel" onchange="applyFilters()">
+        <option value="score_desc">🔥 Hottest First · Top Score</option>
         <option value="date_score">Newest First · Best Score on Top</option>
-        <option value="score_desc">Score — High to Low</option>
         <option value="score_asc">Score — Low to High</option>
         <option value="date_desc">Date — Newest First</option>
         <option value="date_asc">Date — Oldest First</option>
@@ -581,7 +588,7 @@ function renderTable() {
     const amt = r.amount ? '$'+r.amount.toLocaleString('en-US',{minimumFractionDigits:0}) : '—';
     const amtCls = r.amount>100000 ? 'amt big' : 'amt';
     const flags = (r.flags||[]).slice(0,3).map(f => {
-      const hot = ['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien'].includes(f);
+      const hot = ['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien','Tax delinquent','Out-of-state owner','Absentee owner','Tax debt >$50k','Tax debt >$25k','Tax debt >$10k'].includes(f);
       return `<span class="flag${hot?' hot':''}">${f}</span>`;
     }).join('');
     const viewUrl = r.owner
@@ -625,7 +632,7 @@ function openModal(id) {
   const tc = 't-'+(r.cat||'MISC');
   const amt = r.amount ? '$'+r.amount.toLocaleString('en-US') : '—';
   const flags = (r.flags||[]).map(f => {
-    const hot = ['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien'].includes(f);
+    const hot = ['Lis pendens','Pre-foreclosure','Judgment lien','Tax lien','Tax delinquent','Out-of-state owner','Absentee owner','Tax debt >$50k','Tax debt >$25k','Tax debt >$10k'].includes(f);
     return `<span class="flag${hot?' hot':''}">${f}</span>`;
   }).join('');
 
@@ -702,6 +709,15 @@ function openModal(id) {
 function closeModal() { document.getElementById('modalBg').classList.remove('open'); }
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
 
+function splitName(owner) {
+  // County order is LAST FIRST; drop trailing ET AL / ETAL.
+  let s = (owner||'').replace(/\s*ET\s*AL\.?\s*$/i,'').replace(/\s+/g,' ').trim();
+  if (!s) return {first:'', last:''};
+  const p = s.split(' ');
+  if (p.length===1) return {first:'', last:p[0]};
+  return {first:p.slice(1).join(' '), last:p[0]};
+}
+
 function exportCSV() {
   const cols = ['First Name','Last Name','Mailing Address','Mailing City','Mailing State','Mailing Zip',
     'Property Address','Property City','Property State','Property Zip',
@@ -711,10 +727,10 @@ function exportCSV() {
     'Seller Score','Motivated Seller Flags','Source','Public Records URL'];
   const rows = [cols.join(',')];
   filtered.forEach(r => {
-    const owner = r.owner||'';
-    const parts = owner.split(' ');
+    const nm = {first: r.first_name, last: r.last_name};
+    if (nm.first==null && nm.last==null) { const s=splitName(r.owner||''); nm.first=s.first; nm.last=s.last; }
     rows.push([
-      csv(parts[0]||''), csv(parts.slice(1).join(' ')||''),
+      csv(nm.first||''), csv(nm.last||''),
       csv(r.mail_address||''), csv(r.mail_city||''), csv(r.mail_state||'SC'), csv(r.mail_zip||''),
       csv(r.prop_address||''), csv(r.prop_city||''), csv(r.prop_state||'SC'), csv(r.prop_zip||''),
       csv(r.phone1||''), csv(r.phone2||''), csv(r.email1||''), csv(r.email2||''),
@@ -738,9 +754,8 @@ function exportCSV() {
 function copySingle(id) {
   const r = ALL.find(a=>a._id===id);
   if (!r) return;
-  const owner = r.owner||'';
-  const parts = owner.split(' ');
-  const row = [parts[0]||'', parts.slice(1).join(' ')||'',
+  const nm = (r.first_name!=null||r.last_name!=null) ? {first:r.first_name,last:r.last_name} : splitName(r.owner||'');
+  const row = [nm.first||'', nm.last||'',
     r.mail_address||'', r.mail_city||'', r.mail_state||'SC', r.mail_zip||'',
     r.prop_address||'', r.prop_city||'', r.prop_state||'SC', r.prop_zip||'',
     r.phone1||'', r.phone2||'', r.email1||'', r.email2||'',
