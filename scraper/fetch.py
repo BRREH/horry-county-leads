@@ -1,5 +1,5 @@
 """
-Horry County SC — Complete Lead Scraper — UPDATED v9
+Horry County SC — Complete Lead Scraper — UPDATED v12
 ========================================================
 CHANGES in v5 (address accuracy — fixes the "Wyndham cluster" bug where many
 different people all got one lienholder's address):
@@ -177,23 +177,62 @@ def classify_doc(description: str) -> Optional[tuple]:
     return None
 
 
+def split_owner_name(owner: str):
+    """Horry County records store owner names LAST FIRST (e.g. 'STRONG PATRICK A').
+    Return (first_name, last_name), dropping a trailing ET AL / ETAL."""
+    s = re.sub(r"\s*ET\s*AL\.?\s*$", "", (owner or "").strip(), flags=re.I)
+    s = re.sub(r"\s+", " ", s).strip()
+    if not s:
+        return ("", "")
+    parts = s.split(" ")
+    if len(parts) == 1:
+        return ("", parts[0])
+    return (" ".join(parts[1:]), parts[0])   # first = remainder, last = first token
+
+
+def _norm_addr(s: str) -> str:
+    s = re.sub(r"\s+", " ", (s or "").strip().upper())
+    for a, b in ((" STREET", " ST"), (" AVENUE", " AVE"), (" ROAD", " RD"),
+                 (" DRIVE", " DR"), (" LANE", " LN"), (" BOULEVARD", " BLVD"),
+                 (" COURT", " CT"), (" CIRCLE", " CIR"), (" HIGHWAY", " HWY")):
+        s = s.replace(a, b)
+    return s
+
+
 def compute_flags(record: dict) -> list:
     flags     = []
     cat       = record.get("cat", "")
-    cat_label = record.get("cat_label", "")
+    cat_label = record.get("cat_label", "").upper()
     owner     = record.get("owner", "")
     filed     = record.get("filed", "")
+    amount    = record.get("amount") or 0
 
     if cat == "LP":                                      flags.append("Lis pendens")
     if cat == "NOFC":                                    flags.append("Pre-foreclosure")
     if cat == "JUD":                                     flags.append("Judgment lien")
-    if "TAX" in cat_label.upper():                       flags.append("Tax lien")
-    if "MECHANIC" in cat_label.upper():                  flags.append("Mechanic lien")
+    if "TAX" in cat_label and cat != "TAX":              flags.append("Tax lien")
+    if "MECHANIC" in cat_label:                          flags.append("Mechanic lien")
     if cat == "PRO":                                     flags.append("Probate / estate")
     if cat == "INH":                                     flags.append("Inherited / estate")
     if cat == "TAX":                                     flags.append("Tax delinquent")
-    if "HOA" in cat_label.upper() or "CONDO" in cat_label.upper():
-        flags.append("HOA lien")
+    if "HOA" in cat_label or "CONDO" in cat_label:       flags.append("HOA lien")
+
+    # Tax-debt size tiers (amount on a tax lead is the total owed)
+    if cat == "TAX" and amount:
+        if   amount >= 50_000: flags.append("Tax debt >$50k")
+        elif amount >= 25_000: flags.append("Tax debt >$25k")
+        elif amount >= 10_000: flags.append("Tax debt >$10k")
+
+    # Owner-motivation signals
+    mail_state = (record.get("mail_state", "") or "").strip().upper()
+    prop_state = (record.get("prop_state", "SC") or "SC").strip().upper()
+    if mail_state and mail_state not in ("SC", prop_state):
+        flags.append("Out-of-state owner")
+    ma = _norm_addr(record.get("mail_address", ""))
+    pa = _norm_addr(record.get("prop_address", ""))
+    if ma and pa and ma != pa:
+        flags.append("Absentee owner")
+
     if owner and re.search(r"\b(LLC|INC|CORP|LTD|TRUST|HOLDINGS)\b", owner.upper()):
         flags.append("LLC / corp owner")
     try:
@@ -205,16 +244,44 @@ def compute_flags(record: dict) -> list:
 
 
 def compute_score(record: dict, flags: list) -> int:
-    score = 30
-    score += len(flags) * 10
-    if "Lis pendens" in flags and "Pre-foreclosure" in flags: score += 20
-    amount = record.get("amount")
-    if amount:
-        if amount > 100_000: score += 15
-        elif amount > 50_000: score += 10
-    if "New this week"  in flags: score += 5
-    if record.get("prop_address", "").strip(): score += 5
-    return min(score, 100)
+    f = set(flags)
+    score = 20
+
+    # Per-signal distress weights
+    WEIGHTS = {
+        "Pre-foreclosure": 18, "Lis pendens": 18, "Judgment lien": 14,
+        "Tax delinquent": 12, "Tax lien": 12, "Mechanic lien": 12,
+        "Probate / estate": 12, "Inherited / estate": 12, "HOA lien": 10,
+    }
+    score += sum(w for k, w in WEIGHTS.items() if k in f)
+
+    # Stacked distress — multiple INDEPENDENT signals on one property = hottest.
+    cats = set()
+    if f & {"Pre-foreclosure", "Lis pendens"}:        cats.add("foreclosure")
+    if f & {"Tax delinquent", "Tax lien"}:            cats.add("tax")
+    if "Judgment lien" in f:                          cats.add("judgment")
+    if "Mechanic lien" in f:                          cats.add("mechanic")
+    if "HOA lien" in f:                               cats.add("hoa")
+    if f & {"Probate / estate", "Inherited / estate"}: cats.add("estate")
+    if   len(cats) >= 3: score += 35
+    elif len(cats) == 2: score += 18
+    if "Lis pendens" in f and "Pre-foreclosure" in f: score += 15
+
+    # Owner-motivation modifiers
+    if "Out-of-state owner" in f: score += 10
+    if "Absentee owner"     in f: score += 8
+
+    # Debt size
+    if   "Tax debt >$50k" in f: score += 18
+    elif "Tax debt >$25k" in f: score += 12
+    elif "Tax debt >$10k" in f: score += 8
+    amount = record.get("amount") or 0
+    if   amount > 100_000: score += 10
+    elif amount > 50_000:  score += 6
+
+    if "New this week" in f: score += 4
+    if record.get("prop_address", "").strip(): score += 3
+    return max(0, min(score, 100))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -283,17 +350,18 @@ class GISLookup:
         for i in range(0, len(uniq), 50):
             batch  = uniq[i:i+50]
             inlist = ",".join("'" + t.replace("'", "''") + "'" for t in batch)
-            # Layer 24 — owner mailing address
+            # Layer 24 — current owner name + mailing address
             try:
                 r = self.session.get(PARCELS_URL, params={
                     "where": f"TMS IN ({inlist})",
-                    "outFields": "OwnerStreet,OwnerCity,OwnerState,OwnerZip,TMS",
+                    "outFields": "OwnerName,OwnerStreet,OwnerCity,OwnerState,OwnerZip,TMS",
                     "returnGeometry": "false", "f": "json",
                 }, timeout=20)
                 for f in r.json().get("features", []):
                     a = f["attributes"]; t = str(a.get("TMS","") or "").strip()
                     if t:
                         out.setdefault(t, {}).update({
+                            "owner_name":   (a.get("OwnerName","") or "").strip(),
                             "mail_address": (a.get("OwnerStreet","") or "").strip(),
                             "mail_city":    (a.get("OwnerCity","") or "").strip(),
                             "mail_state":   (a.get("OwnerState","") or "SC").strip(),
@@ -477,9 +545,15 @@ def fetch_delinquent_tax(gis: "GISLookup") -> list:
     records = []
     for f in raw:
         a     = f["attributes"]
-        owner = (a.get("owner_name") or a.get("new_owner_name") or "").strip()
         tms   = str(a.get("tms","") or "").strip()
         addr  = addr_map.get(tms, {})
+        tax_list_owner = (a.get("owner_name") or a.get("new_owner_name") or "").strip()
+        # Prefer the CURRENT owner from the parcel record (same source as the
+        # address) so name + mailing + property all describe today's owner.
+        # The delinquent-tax list's name can be stale when a property changed
+        # hands after going delinquent. Fall back to the tax-list name only if
+        # the parcel record has no owner.
+        owner = (addr.get("owner_name") or "").strip() or tax_list_owner
         records.append({
             "doc_num":        (a.get("item_number","") or "").strip(),
             "doc_type":       "TAX",
@@ -1035,10 +1109,8 @@ async def main():
     unique  = [merged[k] for k in order]
     log.info("Final dedup: removed %d duplicate lead(s) -> %d unique", removed, len(unique))
 
-    # Sort: NEWEST FILED FIRST, then HIGHEST SCORE within the same day.
-    # Tax records carry a blank filed date, so they sort below dated ROD leads
-    # in the default newest-first view and are best viewed via their filter.
-    unique.sort(key=lambda r: (r.get("filed",""), r.get("score",0)), reverse=True)
+    # Sort: HOTTEST FIRST — highest score on top, newest filed as the tiebreaker.
+    unique.sort(key=lambda r: (r.get("score",0), r.get("filed","")), reverse=True)
 
     # ── Reliability guard: never overwrite good data with an empty scrape ──
     if not unique:
@@ -1052,9 +1124,16 @@ async def main():
     start_date, end_date = date_range_str()
     repo = Path(__file__).parent.parent
 
+    # Pre-split owner into First/Last (county order is LAST FIRST) so the
+    # dashboard export and the server CSV use the same, correct columns.
+    for r in unique:
+        fn, ln = split_owner_name(r.get("owner",""))
+        r["first_name"] = fn
+        r["last_name"]  = ln
+
     payload = {
         "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS (v9)",
+        "source":       "Horry County Register of Deeds + GIS (v12)",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(unique),
         "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
@@ -1079,11 +1158,10 @@ async def main():
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for r in unique:
-            owner = r.get("owner","")
-            parts = owner.split(" ",1) if owner else ["",""]
+            first_name, last_name = split_owner_name(r.get("owner",""))
             writer.writerow({
-                "First Name":            parts[0],
-                "Last Name":             parts[1] if len(parts)>1 else "",
+                "First Name":            first_name,
+                "Last Name":             last_name,
                 "Mailing Address":       r.get("mail_address",""),
                 "Mailing City":          r.get("mail_city",""),
                 "Mailing State":         r.get("mail_state","SC"),
