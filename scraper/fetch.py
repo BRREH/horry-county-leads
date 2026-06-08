@@ -1,5 +1,5 @@
 """
-Horry County SC — Complete Lead Scraper — UPDATED v12
+Horry County SC — Complete Lead Scraper — UPDATED v13
 ========================================================
 CHANGES in v5 (address accuracy — fixes the "Wyndham cluster" bug where many
 different people all got one lienholder's address):
@@ -1133,7 +1133,7 @@ async def main():
 
     payload = {
         "fetched_at":   datetime.now().isoformat(),
-        "source":       "Horry County Register of Deeds + GIS (v12)",
+        "source":       "Horry County Register of Deeds + GIS (v13)",
         "date_range":   {"start": start_date, "end": end_date},
         "total":        len(unique),
         "with_address": sum(1 for r in unique if r.get("prop_address","").strip()),
@@ -1158,7 +1158,8 @@ async def main():
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for r in unique:
-            first_name, last_name = split_owner_name(r.get("owner",""))
+            owner = r.get("owner", "")
+            first_name, last_name = split_owner_name(owner)
             writer.writerow({
                 "First Name":            first_name,
                 "Last Name":             last_name,
