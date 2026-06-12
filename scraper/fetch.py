@@ -169,8 +169,21 @@ def normalize_date(raw):
     return date_part
 
 
+# Documents that RESOLVE a distress event rather than create one. A
+# "CONDO LIEN SATISFACTION" means the lien was PAID OFF — the owner is not a
+# distressed seller. Without this filter ~70% of "HOA/Condo Lien" leads were
+# actually satisfactions (309 of 439 in a typical 14-day window), plus
+# "LIS PENDENS DEED RELEASE", "FEDERAL TAX SATISFACTION", etc.
+RESOLVED_RE = re.compile(
+    r"\b(SATISFACTION|RELEASE|RESCISSION|TERMINATION|WITHDRAWAL|CANCEL|"
+    r"CANCELLATION|DISMISSAL|EXPUNGE|DISCHARGE)\b"
+)
+
+
 def classify_doc(description: str) -> Optional[tuple]:
     desc = description.strip().upper()
+    if RESOLVED_RE.search(desc):
+        return None  # lien/LP was satisfied or released — not a distress lead
     for keyword, cat, label in DOC_TYPE_KEYWORDS:
         if keyword in desc:
             return (cat, label)
@@ -585,6 +598,26 @@ def fetch_delinquent_tax(gis: "GISLookup") -> list:
     return records
 
 
+def load_previous_rod_records() -> list:
+    """Return the Register-of-Deeds records (everything that is NOT the
+    delinquent-tax category) from the existing records.json. Used when the
+    AcclaimWeb scrape fails or returns nothing: a transient site outage or a
+    slow CSV export must not silently wipe every lien / inherited / probate
+    lead off the dashboard (this happened on 2026-06-12 — the daily run
+    published 856 tax-only records and all deed leads vanished)."""
+    repo = Path(__file__).parent.parent
+    for path in (repo/"dashboard"/"records.json", repo/"data"/"records.json"):
+        try:
+            if path.exists():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                rod = [r for r in data.get("records", []) if r.get("cat") != "TAX"]
+                if rod:
+                    return rod
+        except Exception as e:
+            log.debug("Could not read previous ROD records from %s: %s", path, e)
+    return []
+
+
 def load_previous_tax_records() -> list:
     """Return the TAX-category records from the existing records.json, so a
     transient tax-service outage doesn't drop the whole category. The tax list
@@ -745,7 +778,14 @@ async def run_acclaim(page: Page) -> list:
             except Exception:
                 pass
 
-    await page.goto(DOCTYPE_URL, wait_until="networkidle", timeout=30000)
+    # networkidle is flaky on this Kendo-UI page (long-lived connections can
+    # keep it from ever firing, which throws and aborts the whole deed scrape).
+    # Wait for DOM + the search form's group dropdown instead.
+    await page.goto(DOCTYPE_URL, wait_until="domcontentloaded", timeout=45000)
+    try:
+        await page.wait_for_selector("select", timeout=20000)
+    except Exception:
+        log.warning("Doc-type search form did not render a <select> in 20s")
     await asyncio.sleep(3)
 
     await page.evaluate("""
@@ -794,27 +834,44 @@ async def run_acclaim(page: Page) -> list:
     """)
     await asyncio.sleep(1)
 
-    for sel in ["#Checkbox1", "[name='SelectAllDocTypesToggle']"]:
-        try:
-            el = page.locator(sel).first
-            if await el.count() > 0:
-                await el.check()
-                await asyncio.sleep(1)
-                log.info("SelectAll checked")
-                break
-        except Exception:
-            pass
+    # The SelectAll checkbox (#Checkbox1) exists but is NOT visible, so
+    # Playwright's .check() spins for its full timeout (2 selectors x 20s =
+    # 40s wasted every run) and never succeeds. Set it via JS instead and call
+    # the page's own ToggleChk handler so every doc-type checkbox is ticked.
+    res = await page.evaluate("""
+        () => {
+            const cb = document.querySelector(
+                '#Checkbox1,[name="SelectAllDocTypesToggle"]');
+            if (!cb) return 'no SelectAll checkbox';
+            cb.checked = true;
+            try { if (typeof ToggleChk === 'function')
+                      ToggleChk(cb, 'DocTypeInfoCheckBox'); } catch (e) {}
+            // belt and suspenders: tick every doc-type checkbox directly
+            const boxes = document.querySelectorAll(
+                'input[name="DocTypeInfoCheckBox"]');
+            boxes.forEach(b => { b.checked = true; });
+            return `SelectAll set; ${boxes.length} doc-type boxes ticked`;
+        }
+    """)
+    log.info("Doc-type selection: %s", res)
+    await asyncio.sleep(1)
 
+    searched = False
     for sel in ["#btnSearch", "input[value='Search']", "input[type='submit']"]:
         try:
             el = page.locator(sel).first
             if await el.count() > 0:
                 await el.click()
-                await page.wait_for_load_state("networkidle", timeout=30000)
-                log.info("Search submitted")
+                # networkidle can hang on Kendo grids; wait for DOM then poll
+                # for the export control in the loop below instead.
+                await page.wait_for_load_state("domcontentloaded", timeout=30000)
+                log.info("Search submitted via %s", sel)
+                searched = True
                 break
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("Search click failed %s: %s", sel, e)
+    if not searched:
+        log.warning("No Search button found on doc-type page")
 
     log.info("Waiting for Export to CSV button...")
     for attempt in range(15):
@@ -827,7 +884,10 @@ async def run_acclaim(page: Page) -> list:
                 el = page.locator(sel).first
                 if await el.count() > 0:
                     log.info("✓ Export found (attempt %d): %s", attempt+1, sel)
-                    async with page.expect_download(timeout=30000) as dl_info:
+                    # The CSV is ~840 KB and server-side generation can take a
+                    # while on a cold morning; 30s was tight enough to cause
+                    # whole-run failures. Allow 90s for the download.
+                    async with page.expect_download(timeout=90000) as dl_info:
                         await el.click()
                     download = await dl_info.value
                     path = await download.path()
@@ -862,24 +922,38 @@ async def main():
             browser = await pw.chromium.launch(
                 headless=True, args=["--no-sandbox","--disable-dev-shm-usage"]
             )
-            context = await browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-                viewport={"width": 1280, "height": 1024},
-                accept_downloads=True,
-            )
-            page = await context.new_page()
-            page.set_default_timeout(20000)
-            try:
-                acclaim_records = await run_acclaim(page)
-                all_records.extend(acclaim_records)
-                log.info("Acclaim records: %d", len(acclaim_records))
-            except Exception as e:
-                log.error("Acclaim error: %s", e, exc_info=True)
-            finally:
-                await browser.close()
+            # Retry the whole AcclaimWeb sequence up to 3 times with a fresh
+            # page each attempt — a single transient timeout (slow morning,
+            # site hiccup) must not zero out the deed half of the pipeline.
+            acclaim_records = []
+            for attempt in range(1, 4):
+                context = await browser.new_context(
+                    user_agent=(
+                        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                        "Chrome/120.0.0.0 Safari/537.36"
+                    ),
+                    viewport={"width": 1280, "height": 1024},
+                    accept_downloads=True,
+                )
+                page = await context.new_page()
+                page.set_default_timeout(20000)
+                try:
+                    acclaim_records = await run_acclaim(page)
+                    if acclaim_records:
+                        log.info("Acclaim attempt %d: %d records",
+                                 attempt, len(acclaim_records))
+                        break
+                    log.warning("Acclaim attempt %d returned 0 records", attempt)
+                except Exception as e:
+                    log.error("Acclaim attempt %d error: %s", attempt, e,
+                              exc_info=True)
+                finally:
+                    await context.close()
+                if attempt < 3:
+                    await asyncio.sleep(20 * attempt)
+            await browser.close()
+            all_records.extend(acclaim_records)
+            log.info("Acclaim records: %d", len(acclaim_records))
     else:
         log.error("Playwright not available")
 
@@ -1021,6 +1095,24 @@ async def main():
     log.info("Quality filter: %d -> %d kept (dropped %d corporate, %d no-address)",
              before, len(unique), dropped_corp, dropped_noaddr)
 
+    # ── Step 3b-2: Deed carry-forward guard ────────────────────────────────
+    # Mirrors the delinquent-tax guard below. If the AcclaimWeb scrape failed
+    # (site outage, slow export, blocked runner IP) we end up here with zero
+    # Register-of-Deeds leads. Publishing that would silently wipe every
+    # lien / inherited / probate lead off the dashboard (this happened on
+    # 2026-06-12). Previous-run records are already enriched and filtered, so
+    # they slot straight in; the dashboard keeps the last good deed data and
+    # the log shouts about it.
+    if not unique:
+        prev_rod = load_previous_rod_records()
+        if prev_rod:
+            log.warning("No Register-of-Deeds leads this run — carrying "
+                        "forward %d deed leads from the previous run", len(prev_rod))
+            unique = prev_rod
+        else:
+            log.error("No Register-of-Deeds leads and no previous deed leads "
+                      "to carry forward — dashboard will be tax-only")
+
     # ── Step 3c: Delinquent Tax leads (full annual list, NOT filtered) ──────
     log.info("STEP 3c: Delinquent Tax parcels")
     try:
@@ -1067,7 +1159,7 @@ async def main():
              len(tax_records), tax_total, dropped)
     unique = unique + tax_records
     log.info("Combined total (ROD %d + tax %d) = %d",
-             len(kept), len(tax_records), len(unique))
+             len(unique) - len(tax_records), len(tax_records), len(unique))
 
     # ── Final dedup: one lead per OWNER + PARCEL ──────────────────────────
     # The county often records several documents against the same parcel
@@ -1108,6 +1200,14 @@ async def main():
     removed = len(unique) - len(merged)
     unique  = [merged[k] for k in order]
     log.info("Final dedup: removed %d duplicate lead(s) -> %d unique", removed, len(unique))
+
+    # Re-score from the MERGED flag set. Taking max(score_a, score_b) loses
+    # the stacked-distress bonus: an owner with an HOA lien (score ~55) who is
+    # ALSO on the delinquent tax list (score ~53) is two independent distress
+    # signals (+18) and should clear 70 — the hottest leads on the board. The
+    # merge above combines the flags; this recompute lets the bonus fire.
+    for r in unique:
+        r["score"] = compute_score(r, r.get("flags", []))
 
     # Sort: HOTTEST FIRST — highest score on top, newest filed as the tiebreaker.
     unique.sort(key=lambda r: (r.get("score",0), r.get("filed","")), reverse=True)
