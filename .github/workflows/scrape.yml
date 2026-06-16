@@ -2,7 +2,7 @@ name: Scrape Horry County Leads
 
 on:
   schedule:
-    - cron: "0 7 * * *"
+    - cron: "0 10 * * 4"   # Thursdays at 10:00 UTC = 5:00 AM EST
   workflow_dispatch:
 
 permissions:
