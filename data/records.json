@@ -1,9 +1,9 @@
 {
-  "fetched_at": "2026-11-19T18:50:46.534835",
+  "fetched_at": "2026-11-26T19:23:35.578834",
   "source": "Horry County Register of Deeds + GIS (v13)",
   "date_range": {
-    "start": "11/05/2026",
-    "end": "11/19/2026"
+    "start": "11/12/2026",
+    "end": "11/26/2026"
   },
   "total": 55,
   "with_address": 55,
